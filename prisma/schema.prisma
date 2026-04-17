@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id                    Int            @id @default(autoincrement())
+  nome                  String
+  email                 String         @unique
+  senha                 String
+  contasComoPrimeiro    ContaConjunta[] @relation("Usuario1")
+  contasComoSegundo     ContaConjunta[] @relation("Usuario2")
+  gastosComoResponsavel Gasto[]        @relation("Responsavel")
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+}
+
+model ContaConjunta {
+  id         Int      @id @default(autoincrement())
+  nomeConta  String
+  usuario1Id Int
+  usuario2Id Int
+  usuario1   Usuario  @relation("Usuario1", fields: [usuario1Id], references: [id], onDelete: Cascade)
+  usuario2   Usuario  @relation("Usuario2", fields: [usuario2Id], references: [id], onDelete: Cascade)
+  gastos     Gasto[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([usuario1Id, usuario2Id])
+  @@index([usuario1Id])
+  @@index([usuario2Id])
+}
+
+model Categoria {
+  id         Int      @id @default(autoincrement())
+  descricao  String
+  gastos     Gasto[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Gasto {
+  id              Int           @id @default(autoincrement())
+  descricao       String
+  valor           Decimal       @db.Decimal(10, 2)
+  categoriaId     Int
+  categoria       Categoria     @relation(fields: [categoriaId], references: [id])
+  dataLancamento  DateTime
+  responsavelId   Int
+  responsavel     Usuario       @relation("Responsavel", fields: [responsavelId], references: [id])
+  contaConjuntaId Int
+  contaConjunta   ContaConjunta @relation(fields: [contaConjuntaId], references: [id])
+  createdAt       DateTime      @default(now())
+
+  @@index([categoriaId])
+  @@index([responsavelId])
+  @@index([contaConjuntaId])
+}
+

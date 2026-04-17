@@ -1,0 +1,49 @@
+{
+  "name": "nossosaldoapi",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon --watch src --ext ts --exec \"ts-node\" src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "lint": "eslint . --ext .ts",
+    "prisma": "prisma",
+    "migrate": "prisma migrate dev --name init",
+    "test": "jest --config jest.config.cjs --runInBand --passWithNoTests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joaorafamenezes/NossoSaldo-api.git"
+  },
+  "author": "joao",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/joaorafamenezes/NossoSaldo-api/issues"
+  },
+  "homepage": "https://github.com/joaorafamenezes/NossoSaldo-api#readme",
+  "description": "",
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
+    "eslint": "^9.39.4",
+    "prisma": "^6.19.3",
+    "ts-jest": "^29.4.9",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "jest": "^30.3.0",
+    "joi": "^18.1.2",
+    "nodemon": "^3.1.14",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0"
+  }
+}

@@ -1,0 +1,10 @@
+-- Migration: Create Categoria table
+-- This migration creates the Categoria table for expense categories.
+
+CREATE TABLE `Categoria` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `descricao` VARCHAR(191) NOT NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
