@@ -24,10 +24,12 @@
   "description": "",
   "devDependencies": {
     "@types/jest": "^30.0.0",
+    "@types/supertest": "^7.2.0",
     "@typescript-eslint/eslint-plugin": "^8.58.2",
     "@typescript-eslint/parser": "^8.58.2",
     "eslint": "^9.39.4",
     "prisma": "^6.19.3",
+    "supertest": "^7.2.2",
     "ts-jest": "^29.4.9",
     "typescript": "^6.0.3"
   },
