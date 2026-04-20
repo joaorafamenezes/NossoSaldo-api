@@ -1,8 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import Joi from "joi";
-import iCriarUsuarioSchema from "../../@types/iCriarUsuario";
 
-function validateCreateUser(schema: Joi.ObjectSchema<iCriarUsuarioSchema>) {
+function validateUser<TSchema>(schema: Joi.ObjectSchema<TSchema>) {
     return (req: Request, res: Response, next: NextFunction) => {
     const { error, value } = schema.validate(req.body, {
       abortEarly: false,
@@ -21,5 +20,5 @@ function validateCreateUser(schema: Joi.ObjectSchema<iCriarUsuarioSchema>) {
 }
 
 export {
-    validateCreateUser
+    validateUser
 }

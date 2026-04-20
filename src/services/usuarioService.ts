@@ -1,5 +1,5 @@
 import { usuarioRepository } from '../repositories/usuarioRepository';
-import iCriarUsuarioSchema from "../@types/iCriarUsuario";
+import iCriarUsuario from "../@types/iCriarUsuario";
 import { Usuario } from '@prisma/client';
 import autentication from '../secure/autentication';
 import iLogin from '../@types/iLogin';
@@ -7,7 +7,7 @@ import authorization from '../secure/authorization';
 
 class UsuarioService {
 
-    async criarUsuario(data: iCriarUsuarioSchema): Promise<Usuario> {
+    async criarUsuario(data: iCriarUsuario): Promise<Usuario> {
         const nome = data.nome;
         const email = data.email;
         const senha = autentication.hasPassword(data.senha);

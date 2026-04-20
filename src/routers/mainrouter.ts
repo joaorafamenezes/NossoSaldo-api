@@ -1,8 +1,9 @@
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
-import { validateCreateUser } from "./middlewares/usuarioMiddleware";
+import { validateUser } from "./middlewares/usuarioMiddleware";
 import { usuarioControler } from "../controllers/usuarioController";
 import { createUsuarioSchema } from "../schemas/usuario/createUsuarioSchema";
+import { loginSchema } from '../schemas/login/loginSchema';
 import validateLogin from "./middlewares/loginMiddleware";
 
 const router = Router();
@@ -18,9 +19,9 @@ router.get("/auth/check", validateLogin, (_req: Request, res: Response) => {
 });
 
 //POST
-router.post("/usuario", validateLogin, validateCreateUser(createUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {
+router.post("/usuario", validateLogin, validateUser(createUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {
   usuarioControler.criarUsuario(req, res, next).catch(next);
 });
-router.post("/login", usuarioControler.login.bind(usuarioControler));
+router.post("/login", validateUser(loginSchema), usuarioControler.login.bind(usuarioControler));
 
 export { router }
