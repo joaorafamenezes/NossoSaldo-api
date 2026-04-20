@@ -7,7 +7,7 @@ CREATE TABLE `Gasto` (
   `valor` DECIMAL(10, 2) NOT NULL,
   `categoriaId` INT NOT NULL,
   `dataLancamento` DATETIME(3) NOT NULL,
-  `responsavelId` INT NOT NULL,
+  `responsavelId` VARCHAR(191) NOT NULL,
   `contaConjuntaId` INT NOT NULL,
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),

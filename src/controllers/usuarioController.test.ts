@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { usuarioControler } from './usuarioController';
 import { usuarioService } from '../services/usuarioService';
-import iCriarUsuarioSchema from '../@types/iCriarUsuarioSchema';
+import iCriarUsuarioSchema from '../@types/iCriarUsuario';
 
-// Mock do usuarioService
 jest.mock('../services/usuarioService');
 
 describe('UsuarioController', () => {
@@ -13,9 +12,9 @@ describe('UsuarioController', () => {
 
   const mockUsuarioCriado = {
     id: '1',
-    nome: 'João Silva',
+    nome: 'Joao Silva',
     email: 'joao@example.com',
-    senha: 'senha123',
+    senha: 'senha-criptografada',
     createdAt: new Date(),
     updatedAt: new Date()
   };
@@ -23,7 +22,7 @@ describe('UsuarioController', () => {
   beforeEach(() => {
     mockRequest = {
       body: {
-        nome: 'João Silva',
+        nome: 'Joao Silva',
         email: 'joao@example.com',
         senha: 'senha123'
       } as iCriarUsuarioSchema
@@ -50,17 +49,16 @@ describe('UsuarioController', () => {
       );
 
       expect(usuarioService.criarUsuario).toHaveBeenCalledWith({
-        nome: 'João Silva',
+        nome: 'Joao Silva',
         email: 'joao@example.com',
         senha: 'senha123'
       });
-
       expect(mockResponse.status).toHaveBeenCalledWith(201);
       expect(mockResponse.json).toHaveBeenCalledWith(mockUsuarioCriado);
     });
 
     it('should call next with error when service throws', async () => {
-      const error = new Error('Email já existe');
+      const error = new Error('Email ja existe');
       (usuarioService.criarUsuario as jest.Mock).mockRejectedValue(error);
 
       await usuarioControler.criarUsuario(
@@ -85,7 +83,8 @@ describe('UsuarioController', () => {
 
       (usuarioService.criarUsuario as jest.Mock).mockResolvedValue({
         ...mockUsuarioCriado,
-        ...customData
+        ...customData,
+        senha: 'senha-maria-criptografada'
       });
 
       await usuarioControler.criarUsuario(
@@ -97,9 +96,8 @@ describe('UsuarioController', () => {
       expect(usuarioService.criarUsuario).toHaveBeenCalledWith(customData);
     });
 
-    it('should handle service error with specific message', async () => {
-      const errorMessage = 'Usuário já existe com esse email no banco de dados.';
-      const error = new Error(errorMessage);
+    it('should call next when service throws an unexpected error', async () => {
+      const error = new Error('Falha inesperada');
       (usuarioService.criarUsuario as jest.Mock).mockRejectedValue(error);
 
       await usuarioControler.criarUsuario(
@@ -108,17 +106,15 @@ describe('UsuarioController', () => {
         mockNext as NextFunction
       );
 
-      expect(mockNext).toHaveBeenCalledWith(expect.objectContaining({
-        message: errorMessage
-      }));
+      expect(mockNext).toHaveBeenCalledWith(error);
     });
 
     it('should return created user with all properties', async () => {
       const userWithId = {
         id: '123abc',
-        nome: 'João Silva',
+        nome: 'Joao Silva',
         email: 'joao@example.com',
-        senha: 'senha123',
+        senha: 'senha-criptografada',
         createdAt: new Date('2026-04-18'),
         updatedAt: new Date('2026-04-18')
       };
@@ -133,8 +129,9 @@ describe('UsuarioController', () => {
 
       expect(mockResponse.json).toHaveBeenCalledWith(expect.objectContaining({
         id: '123abc',
-        nome: 'João Silva',
-        email: 'joao@example.com'
+        nome: 'Joao Silva',
+        email: 'joao@example.com',
+        senha: 'senha-criptografada'
       }));
     });
   });

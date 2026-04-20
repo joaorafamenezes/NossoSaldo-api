@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { app } from '../app';
+import authorization from '../secure/authorization';
 
 describe('GET /health', () => {
   it('should return health status', async () => {
@@ -22,6 +23,18 @@ describe('GET /health', () => {
 });
 
 describe('POST /usuario', () => {
+  let token: string;
+
+  beforeAll(async () => {
+    const signedToken = await authorization.sign('test-user-id');
+
+    if (!signedToken) {
+      throw new Error('Falha ao gerar token para os testes de /usuario');
+    }
+
+    token = signedToken;
+  });
+
   it('should return 400 when nome is missing', async () => {
     const userData = {
       email: 'joao@example.com',
@@ -30,6 +43,7 @@ describe('POST /usuario', () => {
 
     const response = await request(app)
       .post('/usuario')
+      .set('x-access-token', token)
       .send(userData);
     
     expect(response.status).toBe(400);
@@ -46,6 +60,7 @@ describe('POST /usuario', () => {
 
     const response = await request(app)
       .post('/usuario')
+      .set('x-access-token', token)
       .send(userData)
       .expect(400);
 
@@ -61,6 +76,7 @@ describe('POST /usuario', () => {
 
     const response = await request(app)
       .post('/usuario')
+      .set('x-access-token', token)
       .send(userData)
       .expect(400);
 
@@ -77,6 +93,7 @@ describe('POST /usuario', () => {
 
     const response = await request(app)
       .post('/usuario')
+      .set('x-access-token', token)
       .send(userData)
       .expect(400);
 
@@ -92,6 +109,7 @@ describe('POST /usuario', () => {
 
     const response = await request(app)
       .post('/usuario')
+      .set('x-access-token', token)
       .send(userData)
       .expect(400);
 

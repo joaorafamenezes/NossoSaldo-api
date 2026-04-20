@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
 import { validateCreateUser } from './usuarioMiddleware';
-import iCriarUsuarioSchema from '../../@types/iCriarUsuarioSchema';
+import iCriarUsuarioSchema from '../../@types/iCriarUsuario';
 
 describe('validateCreateUser Middleware', () => {
   let mockRequest: Partial<Request>;
-  let mockResponse: Partial<Request>;
+  let mockResponse: Partial<Response>;
   let mockNext: jest.Mock;
 
   const createTestSchema = () =>

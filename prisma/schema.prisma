@@ -8,7 +8,7 @@ datasource db {
 }
 
 model Usuario {
-  id                    Int            @id @default(autoincrement())
+  id                    String         @id @default(uuid())
   nome                  String
   email                 String         @unique
   senha                 String
@@ -22,8 +22,8 @@ model Usuario {
 model ContaConjunta {
   id         Int      @id @default(autoincrement())
   nomeConta  String
-  usuario1Id Int
-  usuario2Id Int
+  usuario1Id String
+  usuario2Id String
   usuario1   Usuario  @relation("Usuario1", fields: [usuario1Id], references: [id], onDelete: Cascade)
   usuario2   Usuario  @relation("Usuario2", fields: [usuario2Id], references: [id], onDelete: Cascade)
   gastos     Gasto[]
@@ -50,7 +50,7 @@ model Gasto {
   categoriaId     Int
   categoria       Categoria     @relation(fields: [categoriaId], references: [id])
   dataLancamento  DateTime
-  responsavelId   Int
+  responsavelId   String
   responsavel     Usuario       @relation("Responsavel", fields: [responsavelId], references: [id])
   contaConjuntaId Int
   contaConjunta   ContaConjunta @relation(fields: [contaConjuntaId], references: [id])

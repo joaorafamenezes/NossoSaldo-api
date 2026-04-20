@@ -2,7 +2,7 @@
 -- This migration creates the Usuario table for the NossoSaldo database.
 
 CREATE TABLE `Usuario` (
-  `id` INT NOT NULL AUTO_INCREMENT,
+  `id` VARCHAR(191) NOT NULL,
   `nome` VARCHAR(191) NOT NULL,
   `email` VARCHAR(191) NOT NULL,
   `senha` VARCHAR(191) NOT NULL,

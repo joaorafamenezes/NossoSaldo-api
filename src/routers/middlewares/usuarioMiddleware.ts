@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import Joi from "joi";
-import iCriarUsuarioSchema from "../../@types/iCriarUsuarioSchema";
+import iCriarUsuarioSchema from "../../@types/iCriarUsuario";
 
 function validateCreateUser(schema: Joi.ObjectSchema<iCriarUsuarioSchema>) {
     return (req: Request, res: Response, next: NextFunction) => {

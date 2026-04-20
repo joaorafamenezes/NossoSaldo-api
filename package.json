@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --watch src --ext ts --exec \"ts-node\" src/server.ts",
+    "dev": "npm run db:ensure && nodemon --watch src --ext ts --exec \"ts-node\" src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "lint": "eslint . --ext .ts",
+    "db:ensure": "ts-node src/scripts/ensureDatabase.ts",
     "prisma": "prisma",
-    "migrate": "prisma migrate dev --name init",
+    "migrate": "npm run db:ensure && prisma migrate dev --name init",
     "test": "jest --config jest.config.cjs --runInBand --passWithNoTests"
   },
   "repository": {
@@ -24,6 +25,7 @@
   "description": "",
   "devDependencies": {
     "@types/jest": "^30.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/supertest": "^7.2.0",
     "@typescript-eslint/eslint-plugin": "^8.58.2",
     "@typescript-eslint/parser": "^8.58.2",
@@ -38,14 +40,19 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.6.0",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
+    "http-status-codes": "^2.3.0",
     "jest": "^30.3.0",
     "joi": "^18.1.2",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.22.1",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
-    "ts-node-dev": "^2.0.0"
+    "ts-node-dev": "^2.0.0",
+    "uuid": "^14.0.0"
   }
 }
