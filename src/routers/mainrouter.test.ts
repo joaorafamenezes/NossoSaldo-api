@@ -1,119 +1,80 @@
-import request from 'supertest';
-import { app } from '../app';
-import authorization from '../secure/authorization';
+import request from "supertest";
+import { app } from "../app";
+import authorization from "../secure/authorization";
 
-describe('GET /health', () => {
-  it('should return health status', async () => {
+describe("GET /health", () => {
+  it("should return health status", async () => {
     const response = await request(app)
-      .get('/health')
+      .get("/health")
       .expect(200);
 
     expect(response.body).toEqual({
-      message: "API 'NossoSaldo' está funcionando corretamente"
+      message: "API 'NossoSaldo' está funcionando corretamente",
     });
   });
 
-  it('should return JSON content type', async () => {
+  it("should return JSON content type", async () => {
     const response = await request(app)
-      .get('/health')
+      .get("/health")
       .expect(200);
 
-    expect(response.headers['content-type']).toMatch(/json/);
+    expect(response.headers["content-type"]).toMatch(/json/);
   });
 });
 
-describe('POST /usuario', () => {
+describe("POST /usuario", () => {
   let token: string;
 
   beforeAll(async () => {
-    const signedToken = await authorization.sign('test-user-id');
+    const signedToken = await authorization.sign("test-user-id");
 
     if (!signedToken) {
-      throw new Error('Falha ao gerar token para os testes de /usuario');
+      throw new Error("Falha ao gerar token para os testes de /usuario");
     }
 
     token = signedToken;
   });
 
-  it('should return 400 when nome is missing', async () => {
-    const userData = {
-      email: 'joao@example.com',
-      senha: 'senha123'
-    };
-
+  it.each([
+    {
+      name: "nome is missing",
+      userData: { email: "joao@example.com", senha: "senha123" },
+      expectedDetail: "O nome é obrigatório.",
+    },
+    {
+      name: "email is invalid",
+      userData: { nome: "João Silva", email: "email-invalido", senha: "senha123" },
+      expectedDetail: "O email é inválido.",
+    },
+    {
+      name: "email is missing",
+      userData: { nome: "João Silva", senha: "senha123" },
+      expectedDetail: "O email é obrigatório.",
+    },
+    {
+      name: "senha is less than 6 characters",
+      userData: { nome: "João Silva", email: "joao@example.com", senha: "123" },
+      expectedDetail: "A senha deve ter pelo menos 6 caracteres.",
+    },
+    {
+      name: "senha is missing",
+      userData: { nome: "João Silva", email: "joao@example.com" },
+      expectedDetail: "A senha é obrigatória.",
+    },
+  ])("should return 400 when $name", async ({ userData, expectedDetail }) => {
     const response = await request(app)
-      .post('/usuario')
-      .set('x-access-token', token)
-      .send(userData);
-    
-    expect(response.status).toBe(400);
-    expect(response.body).toHaveProperty('errors');
-    expect(Array.isArray(response.body.errors)).toBe(true);
-  });
-
-  it('should return 400 when email is invalid', async () => {
-    const userData = {
-      nome: 'João Silva',
-      email: 'email-invalido',
-      senha: 'senha123'
-    };
-
-    const response = await request(app)
-      .post('/usuario')
-      .set('x-access-token', token)
+      .post("/usuario")
+      .set("x-access-token", token)
       .send(userData)
       .expect(400);
 
-    expect(response.body).toHaveProperty('errors');
-    expect(Array.isArray(response.body.errors)).toBe(true);
-  });
-
-  it('should return 400 when email is missing', async () => {
-    const userData = {
-      nome: 'João Silva',
-      senha: 'senha123'
-    };
-
-    const response = await request(app)
-      .post('/usuario')
-      .set('x-access-token', token)
-      .send(userData)
-      .expect(400);
-
-    expect(response.body).toHaveProperty('errors');
-    expect(Array.isArray(response.body.errors)).toBe(true);
-  });
-
-  it('should return 400 when senha is less than 6 characters', async () => {
-    const userData = {
-      nome: 'João Silva',
-      email: 'joao@example.com',
-      senha: '123'
-    };
-
-    const response = await request(app)
-      .post('/usuario')
-      .set('x-access-token', token)
-      .send(userData)
-      .expect(400);
-
-    expect(response.body).toHaveProperty('errors');
-    expect(Array.isArray(response.body.errors)).toBe(true);
-  });
-
-  it('should return 400 when senha is missing', async () => {
-    const userData = {
-      nome: 'João Silva',
-      email: 'joao@example.com'
-    };
-
-    const response = await request(app)
-      .post('/usuario')
-      .set('x-access-token', token)
-      .send(userData)
-      .expect(400);
-
-    expect(response.body).toHaveProperty('errors');
-    expect(Array.isArray(response.body.errors)).toBe(true);
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        status: "error",
+        message: "Dados de entrada inválidos.",
+        details: expect.arrayContaining([expectedDetail]),
+      }),
+    );
+    expect(response.body.requestId).toEqual(expect.any(String));
   });
 });

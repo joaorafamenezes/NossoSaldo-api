@@ -26,4 +26,21 @@ describe('autentication', () => {
 
     expect(result).toBe(false);
   });
+
+  it('should generate different hashes for the same password because of salt', () => {
+    const plainPassword = 'senha-super-segura';
+
+    const firstHash = autentication.hasPassword(plainPassword);
+    const secondHash = autentication.hasPassword(plainPassword);
+
+    expect(firstHash).not.toBe(secondHash);
+    expect(autentication.checkPassword(plainPassword, firstHash)).toBe(true);
+    expect(autentication.checkPassword(plainPassword, secondHash)).toBe(true);
+  });
+
+  it('should return false when checking password against an invalid hash string', () => {
+    const result = autentication.checkPassword('senha-super-segura', 'hash-invalido');
+
+    expect(result).toBe(false);
+  });
 });

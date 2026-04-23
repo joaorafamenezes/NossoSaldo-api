@@ -1,8 +1,9 @@
 import { NextFunction, Request, Response } from "express";
 import Joi from "joi";
+import { createValidationError } from "../../errors/httpError";
 
-function validateUser<TSchema>(schema: Joi.ObjectSchema<TSchema>) {
-    return (req: Request, res: Response, next: NextFunction) => {
+function validateCreateUser<TSchema>(schema: Joi.ObjectSchema<TSchema>) {
+  return (req: Request, _res: Response, next: NextFunction) => {
     const { error, value } = schema.validate(req.body, {
       abortEarly: false,
       stripUnknown: true,
@@ -10,15 +11,18 @@ function validateUser<TSchema>(schema: Joi.ObjectSchema<TSchema>) {
 
     if (error) {
       const errorMessages = error.details.map((detail) => detail.message);
-      return res.status(400).json({ errors: errorMessages });
+      return next(createValidationError(errorMessages));
     }
 
     req.body = value;
 
-    next();
-  }
+    return next();
+  };
 }
 
+const validateUser = validateCreateUser;
+
 export {
-    validateUser
-}
+  validateCreateUser,
+  validateUser,
+};
