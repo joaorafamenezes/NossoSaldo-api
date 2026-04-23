@@ -1,6 +1,8 @@
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { isHttpError } from "http-errors";
+import swaggerUi from "swagger-ui-express";
+import { openApiSpec } from "./docs/openapi";
 import { httpLogger } from "./lib/logger";
 import { router } from "./routers/mainRouter";
 
@@ -9,6 +11,10 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 app.use(httpLogger);
+app.get("/docs/openapi.json", (_req: Request, res: Response) => {
+  res.json(openApiSpec);
+});
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));
 app.use(router);
 
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
