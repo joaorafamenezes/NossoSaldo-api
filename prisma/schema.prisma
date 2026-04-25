@@ -20,7 +20,7 @@ model Usuario {
 }
 
 model ContaConjunta {
-  id         Int      @id @default(autoincrement())
+  id         String   @id @default(uuid())
   nomeConta  String
   usuario1Id String
   usuario2Id String
@@ -52,7 +52,7 @@ model Gasto {
   dataLancamento  DateTime
   responsavelId   String
   responsavel     Usuario       @relation("Responsavel", fields: [responsavelId], references: [id])
-  contaConjuntaId Int
+  contaConjuntaId String
   contaConjunta   ContaConjunta @relation(fields: [contaConjuntaId], references: [id])
   createdAt       DateTime      @default(now())
 

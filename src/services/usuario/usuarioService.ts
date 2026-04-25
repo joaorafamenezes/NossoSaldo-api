@@ -1,6 +1,6 @@
 import createHttpError from "http-errors";
 import { usuarioRepository } from "../../repositories/usuario/usuarioRepository";
-import iCriarUsuario from "../../@types/iCriarUsuario";
+import iCriarUsuario from "../../@types/usuario/iCriarUsuario";
 import autentication from "../../secure/autentication";
 import iLogin from "../../@types/iLogin";
 import authorization from "../../secure/authorization";
@@ -53,6 +53,31 @@ class UsuarioService {
 
   async listarUsuarioPorId(id: string) {
     return await usuarioRepository.listarUsuarioPorId(id);
+  }
+
+  async atualizaUsuario(id: string, dadosAtualizados: Partial<iCriarUsuario>) {
+    try {
+      return await usuarioRepository.atualizaUsuario(id, dadosAtualizados);
+    } catch (error) {
+      throw createHttpError(500, "Não foi possível atualizar o usuário.");
+    }
+  }
+
+  async atualizaSenhaUsuario(id: string, novaSenha: string) {
+    try {
+      const senhaHash = autentication.hasPassword(novaSenha);
+      const senhaAtual = await usuarioRepository.buscarSenhaUsuario(id);
+
+      if(senhaAtual === novaSenha){
+        throw createHttpError(400, "A nova senha deve ser diferente da senha atual.");  
+      }
+
+      const atualizaSenha = await usuarioRepository.atualizaSenhaUsuario(id, senhaHash);
+
+      return true;
+    } catch (error) {
+        throw createHttpError(500, "Não foi possível atualizar a senha do usuário.");
+    }
   }
 }
 

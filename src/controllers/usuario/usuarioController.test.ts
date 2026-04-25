@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { usuarioControler } from "./usuarioController";
 import { usuarioService } from "../../services/usuario/usuarioService";
-import iCriarUsuarioSchema from "../../@types/iCriarUsuario";
+import iCriarUsuarioSchema from "../../@types/usuario/iCriarUsuario";
 import { StatusCodes } from "http-status-codes";
 
 jest.mock("../services/usuarioService");

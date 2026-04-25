@@ -7,6 +7,10 @@ import { loginSchema } from '../schemas/login/loginSchema';
 import validarToken from "./middlewares/loginMiddleware";
 import { categoriaController } from "../controllers/categoria/categoriaController";
 import { createCategoriaSchema } from "../schemas/categoria/createCategoriaSchema";
+import { atualizaUsuarioSchema } from "../schemas/usuario/atualizaUsuarioSchema";
+import { atualizaSenhaUsuarioSchema } from "../schemas/usuario/atualizaSenhaUsuarioSchema";
+import { contaConjuntaController } from "../controllers/contaConjunta/contaConjuntaController";
+import { createContaConjuntaSchema } from "../schemas/contaConjunta/createContaConjuntaSchema";
 
 const router = Router();
 
@@ -31,6 +35,18 @@ router.post("/usuario", validarToken, validateUser(createUsuarioSchema), (req: R
 router.post("/login", validateUser(loginSchema), usuarioControler.login.bind(usuarioControler));
 router.post("/categoria", validarToken, validateUser(createCategoriaSchema), (req: Request, res: Response, next: NextFunction) => {
   categoriaController.criarCategoria(req, res, next).catch(next);
+});
+router.post("/criarContaConjunta", validarToken, validateUser(createContaConjuntaSchema), (req: Request, res: Response, next: NextFunction) => {
+  contaConjuntaController.criarContaConjunta(req, res, next).catch(next);
+});
+
+//------------> PATCH <------------//
+router.patch("/usuario", validarToken, validateUser(atualizaUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {
+  usuarioControler.atualizaUsuario(req, res, next).catch(next);
+});
+
+router.patch("/atualizaSenha", validarToken, validateUser(atualizaSenhaUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {
+  usuarioControler.atualizaSenhaUsuario(req, res, next).catch(next);
 });
 
 

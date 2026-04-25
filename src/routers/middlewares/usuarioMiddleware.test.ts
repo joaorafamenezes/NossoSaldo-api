@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import Joi from "joi";
 import { validateCreateUser } from "./usuarioMiddleware";
-import iCriarUsuarioSchema from "../../@types/iCriarUsuario";
+import iCriarUsuarioSchema from "../../@types/usuario/iCriarUsuario";
 
 describe("validateCreateUser Middleware", () => {
   let mockRequest: Partial<Request>;

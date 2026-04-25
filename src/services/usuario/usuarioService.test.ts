@@ -1,6 +1,6 @@
 import { usuarioService } from "./usuarioService";
 import { usuarioRepository } from "../../repositories/usuario/usuarioRepository";
-import iCriarUsuarioSchema from "../../@types/iCriarUsuario";
+import iCriarUsuarioSchema from "../../@types/usuario/iCriarUsuario";
 import iLogin from "../../@types/iLogin";
 import autentication from "../../secure/autentication";
 import authorization from "../../secure/authorization";
