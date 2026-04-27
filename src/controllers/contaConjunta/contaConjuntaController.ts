@@ -19,6 +19,16 @@ class ContaConjuntaController {
       return next(error);
     }
   }
+
+  async listarContasConjuntasPorUsuarioId(req: Request, res: Response, next: NextFunction) {
+    try {
+        const payload = res.locals.payload as Token;
+        const contasConjuntas = await contaConjuntaService.listarContasConjuntasPorUsuarioId(payload.id);
+        return res.status(StatusCodes.OK).json(contasConjuntas); 
+    } catch (error) {
+      return next(error);
+    }
+  }
 }
 
 export const contaConjuntaController = new ContaConjuntaController();

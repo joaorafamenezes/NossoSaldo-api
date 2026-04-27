@@ -27,6 +27,9 @@ router.get("/usuarios", validarToken, (req: Request, res: Response, next: NextFu
 router.get("/usuario", validarToken, (req: Request, res: Response, next: NextFunction) => {
   usuarioControler.listarUsuarioPorId(req, res, next).catch(next);
 });
+router.get("/conta-conjunta", validarToken, (req: Request, res: Response, next: NextFunction) => {
+  contaConjuntaController.listarContasConjuntasPorUsuarioId(req, res, next).catch(next);
+});
 
 //------------> POST <------------//
 router.post("/usuario", validarToken, validateUser(createUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {

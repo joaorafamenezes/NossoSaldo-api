@@ -28,6 +28,16 @@ class ContaConjuntaService {
       usuario2Id,
     });
   }
+
+  async listarContasConjuntasPorUsuarioId(usuarioId: string) {
+    const usuario = await usuarioRepository.listarUsuarioPorId(usuarioId);
+
+    if (!usuario) {
+      throw createHttpError(404, "Usuário não encontrado.");
+    }
+
+    return await contaConjuntaRepository.listarContasConjuntasPorUsuarioId(usuarioId);
+  }
 }
 
 export const contaConjuntaService = new ContaConjuntaService();
