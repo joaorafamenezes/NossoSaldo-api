@@ -1,0 +1,2 @@
+ALTER TABLE `Gasto`
+ADD COLUMN `deletedAt` DATETIME(3) NULL;

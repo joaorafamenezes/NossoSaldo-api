@@ -22,7 +22,7 @@ describe('mainRouter extra routes', () => {
     jest.doMock('./middlewares/usuarioMiddleware', () => ({
       validateUser: () => (_req: express.Request, _res: express.Response, next: express.NextFunction) => next(),
     }));
-    jest.doMock('../controllers/usuarioController', () => ({
+    jest.doMock('../controllers/usuario/usuarioController', () => ({
       usuarioControler: { criarUsuario: jest.fn(), login: jest.fn() },
     }));
 
@@ -53,7 +53,7 @@ describe('mainRouter extra routes', () => {
     jest.doMock('../controllers/categoria/categoriaController', () => ({
       categoriaController: { buscarTodasCategorias: jest.fn(), criarCategoria },
     }));
-    jest.doMock('../controllers/usuarioController', () => ({
+    jest.doMock('../controllers/usuario/usuarioController', () => ({
       usuarioControler: { criarUsuario: jest.fn(), login: jest.fn() },
     }));
 
@@ -77,7 +77,7 @@ describe('mainRouter extra routes', () => {
     jest.doMock('./middlewares/usuarioMiddleware', () => ({
       validateUser: () => (_req: express.Request, _res: express.Response, next: express.NextFunction) => next(),
     }));
-    jest.doMock('../controllers/usuarioController', () => ({
+    jest.doMock('../controllers/usuario/usuarioController', () => ({
       usuarioControler: { criarUsuario: jest.fn(), login },
     }));
     jest.doMock('./middlewares/loginMiddleware', () => ({

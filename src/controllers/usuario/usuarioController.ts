@@ -6,6 +6,7 @@ import iLogin from "../../@types/iLogin";
 import { StatusCodes } from "http-status-codes";
 import { Token } from "../../secure/authorization";
 import iAtualizaUsuarioSchema from "../../@types/usuario/iAtualizaUsuario";
+import authorization from "../../secure/authorization";
 
 class UsuarioController {
   async criarUsuario(req: Request, res: Response, next: NextFunction) {
@@ -24,6 +25,15 @@ class UsuarioController {
       const usuarioLogado = await usuarioService.login(data);
 
       if (usuarioLogado) {
+        req.log?.info(
+          {
+            requestId: req.id,
+            authStatus: "issued",
+            tokenPrefix: usuarioLogado.token ? usuarioLogado.token.slice(0, 24) : null,
+            ...authorization.getJwtDiagnostics(),
+          },
+          "JWT issued during login",
+        );
         return res.status(StatusCodes.OK).json({
           auth: true,
           ...usuarioLogado,

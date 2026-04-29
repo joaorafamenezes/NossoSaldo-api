@@ -1,56 +1,30 @@
 import { Router } from "express";
-import type { Request, Response, NextFunction } from "express";
-import { validateUser } from "./middlewares/usuarioMiddleware";
-import { usuarioControler } from "../controllers/usuario/usuarioController";
-import { createUsuarioSchema } from "../schemas/usuario/createUsuarioSchema";
-import { loginSchema } from '../schemas/login/loginSchema';
-import validarToken from "./middlewares/loginMiddleware";
-import { categoriaController } from "../controllers/categoria/categoriaController";
-import { createCategoriaSchema } from "../schemas/categoria/createCategoriaSchema";
-import { atualizaUsuarioSchema } from "../schemas/usuario/atualizaUsuarioSchema";
-import { atualizaSenhaUsuarioSchema } from "../schemas/usuario/atualizaSenhaUsuarioSchema";
-import { contaConjuntaController } from "../controllers/contaConjunta/contaConjuntaController";
-import { createContaConjuntaSchema } from "../schemas/contaConjunta/createContaConjuntaSchema";
+import type { Request, Response } from "express";
+import authorization from "../secure/authorization";
+import { categoriaRouter } from "./categoria/categoriaRouter";
+import { contaConjuntaRouter } from "./contaConjunta/contaConjuntaRouter";
+import { gastoRouter } from "./gasto/gastoRouter";
+import { usuarioRouter } from "./usuario/usuarioRouter";
 
 const router = Router();
+const appBootedAt = new Date().toISOString();
 
-//------------> GET <------------//
-router.get("/health", (req: Request, res: Response) => {
-  res.json({ message: "API 'NossoSaldo' está funcionando corretamente" });
-});
-router.get("/categorias", validarToken, (req: Request, res: Response, next: NextFunction) => {
-  categoriaController.buscarTodasCategorias(req, res, next).catch(next);
-});
-router.get("/usuarios", validarToken, (req: Request, res: Response, next: NextFunction) => {
-  usuarioControler.listarUsuarios(req, res, next).catch(next);
-});
-router.get("/usuario", validarToken, (req: Request, res: Response, next: NextFunction) => {
-  usuarioControler.listarUsuarioPorId(req, res, next).catch(next);
-});
-router.get("/conta-conjunta", validarToken, (req: Request, res: Response, next: NextFunction) => {
-  contaConjuntaController.listarContasConjuntasPorUsuarioId(req, res, next).catch(next);
+router.get("/health", (_req: Request, res: Response) => {
+    res.json({ message: "API 'NossoSaldo' estÃƒÂ¡ funcionando corretamente" });
 });
 
-//------------> POST <------------//
-router.post("/usuario", validarToken, validateUser(createUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {
-  usuarioControler.criarUsuario(req, res, next).catch(next);
-});
-router.post("/login", validateUser(loginSchema), usuarioControler.login.bind(usuarioControler));
-router.post("/categoria", validarToken, validateUser(createCategoriaSchema), (req: Request, res: Response, next: NextFunction) => {
-  categoriaController.criarCategoria(req, res, next).catch(next);
-});
-router.post("/criarContaConjunta", validarToken, validateUser(createContaConjuntaSchema), (req: Request, res: Response, next: NextFunction) => {
-  contaConjuntaController.criarContaConjunta(req, res, next).catch(next);
+router.get("/debug/jwt", (_req: Request, res: Response) => {
+    res.json({
+        pid: process.pid,
+        bootedAt: appBootedAt,
+        cwd: process.cwd(),
+        ...authorization.getJwtDiagnostics(),
+    });
 });
 
-//------------> PATCH <------------//
-router.patch("/usuario", validarToken, validateUser(atualizaUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {
-  usuarioControler.atualizaUsuario(req, res, next).catch(next);
-});
+router.use(usuarioRouter);
+router.use(categoriaRouter);
+router.use(contaConjuntaRouter);
+router.use(gastoRouter);
 
-router.patch("/atualizaSenha", validarToken, validateUser(atualizaSenhaUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {
-  usuarioControler.atualizaSenhaUsuario(req, res, next).catch(next);
-});
-
-
-export { router }
+export { router };

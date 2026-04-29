@@ -7,9 +7,9 @@ describe("authorization", () => {
 
     expect(token).toBeTruthy();
 
-    const payload = await authorization.verifyToken(token as string);
+    const result = await authorization.verifyToken(token as string);
 
-    expect(payload).toEqual({ id: "user-test-id" });
+    expect(result).toEqual({ payload: { id: "user-test-id" }, error: null });
   });
 
   it("should generate a token with RS256 header and configured expiration", async () => {
@@ -27,22 +27,46 @@ describe("authorization", () => {
     expect(decoded.payload.exp - decoded.payload.iat).toBe(Number(process.env.JWT_EXPIRES));
   });
 
-  it("should return null for invalid token", async () => {
-    const payload = await authorization.verifyToken("token-invalido");
+  it("should return invalid for malformed token", async () => {
+    const result = await authorization.verifyToken("token-invalido");
 
-    expect(payload).toBeNull();
+    expect(result).toEqual({ payload: null, error: "invalid" });
   });
 
-  it("should return null when token signature is tampered", async () => {
+  it("should return invalid when token signature is tampered", async () => {
     const token = await authorization.sign("user-test-id");
     const tamperedToken = `${token}a`;
 
-    const payload = await authorization.verifyToken(tamperedToken);
+    const result = await authorization.verifyToken(tamperedToken);
 
-    expect(payload).toBeNull();
+    expect(result).toEqual({ payload: null, error: "invalid" });
   });
 
-  it("should return null when verifyToken throws a non-Error", async () => {
+  it("should return expired when jwt.verify raises TokenExpiredError", async () => {
+    jest.resetModules();
+    jest.doMock("jsonwebtoken", () => {
+      const actual = jest.requireActual("jsonwebtoken");
+      const actualDefault = actual.default ?? actual;
+      return {
+        __esModule: true,
+        default: {
+          verify: jest.fn(() => {
+            throw new actual.TokenExpiredError("jwt expired", new Date("2026-04-29T15:00:00.000Z"));
+          }),
+          sign: actualDefault.sign,
+        },
+        TokenExpiredError: actual.TokenExpiredError,
+      };
+    });
+
+    const mockedAuthorization = (await import("./authorization")).default;
+
+    const result = await mockedAuthorization.verifyToken("token-expirado");
+
+    expect(result).toEqual({ payload: null, error: "expired" });
+  });
+
+  it("should return invalid when verifyToken throws a non-Error", async () => {
     jest.resetModules();
     jest.doMock("jsonwebtoken", () => ({
       __esModule: true,
@@ -52,13 +76,14 @@ describe("authorization", () => {
         }),
         sign: jest.fn(),
       },
+      TokenExpiredError: class TokenExpiredError extends Error {},
     }));
 
     const mockedAuthorization = (await import("./authorization")).default;
 
-    const payload = await mockedAuthorization.verifyToken("token-quebrado");
+    const result = await mockedAuthorization.verifyToken("token-quebrado");
 
-    expect(payload).toBeNull();
+    expect(result).toEqual({ payload: null, error: "invalid" });
   });
 
   it("should return null when sign throws an Error", async () => {
@@ -71,6 +96,7 @@ describe("authorization", () => {
           throw new Error("falha ao assinar");
         }),
       },
+      TokenExpiredError: class TokenExpiredError extends Error {},
     }));
 
     const mockedAuthorization = (await import("./authorization")).default;
@@ -90,6 +116,7 @@ describe("authorization", () => {
           throw { code: "SIGN_FAILURE" };
         }),
       },
+      TokenExpiredError: class TokenExpiredError extends Error {},
     }));
 
     const mockedAuthorization = (await import("./authorization")).default;

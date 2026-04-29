@@ -1,5 +1,4 @@
-export default interface iCriarContaConjunta {
-    
+export default interface iCriarContaConjunta {    
     nomeConta: string;
     usuario1Id: string;
     usuario2Id: string;

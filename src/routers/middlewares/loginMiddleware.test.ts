@@ -6,6 +6,13 @@ jest.mock("../../secure/authorization", () => ({
   __esModule: true,
   default: {
     verifyToken: jest.fn(),
+    getJwtDiagnostics: jest.fn(() => ({
+      algorithm: "RS256",
+      expiresInSeconds: 3600,
+      privateKeyFingerprint: "privatefinger",
+      publicKeyFingerprint: "publicfinger",
+    })),
+    tokenPrefix: jest.fn(() => "token-prefix"),
   },
 }));
 
@@ -18,6 +25,11 @@ describe("loginMiddleware", () => {
     req = {
       headers: {},
       body: {},
+      id: "req-1",
+      log: {
+        info: jest.fn(),
+        warn: jest.fn(),
+      } as unknown as Request["log"],
     };
 
     res = {
@@ -36,7 +48,7 @@ describe("loginMiddleware", () => {
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({
         statusCode: 401,
-        message: "Token não fornecido",
+        message: "Token nÃƒÂ£o fornecido",
       }),
     );
     expect(auth.verifyToken).not.toHaveBeenCalled();
@@ -44,7 +56,7 @@ describe("loginMiddleware", () => {
 
   it("should forward 401 when token is invalid", async () => {
     req.headers = { "x-access-token": "token-invalido" };
-    (auth.verifyToken as jest.Mock).mockResolvedValue(null);
+    (auth.verifyToken as jest.Mock).mockResolvedValue({ payload: null, error: "invalid" });
 
     await validateLogin(req as Request, res as Response, next);
 
@@ -52,14 +64,29 @@ describe("loginMiddleware", () => {
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({
         statusCode: 401,
-        message: "Token inválido",
+        message: "Token invÃƒÂ¡lido",
+      }),
+    );
+  });
+
+  it("should forward 401 when token is expired", async () => {
+    req.headers = { "x-access-token": "token-expirado" };
+    (auth.verifyToken as jest.Mock).mockResolvedValue({ payload: null, error: "expired" });
+
+    await validateLogin(req as Request, res as Response, next);
+
+    expect(auth.verifyToken).toHaveBeenCalledWith("token-expirado");
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 401,
+        message: "Token expirado",
       }),
     );
   });
 
   it("should call next and attach payload to res.locals when token is valid", async () => {
     req.headers = { "x-access-token": "token-valido" };
-    (auth.verifyToken as jest.Mock).mockResolvedValue({ id: "user-id" });
+    (auth.verifyToken as jest.Mock).mockResolvedValue({ payload: { id: "user-id" }, error: null });
 
     await validateLogin(req as Request, res as Response, next);
 

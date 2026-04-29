@@ -7,6 +7,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum TipoGasto {
+  receita
+  despesa
+}
+
+enum StatusGasto {
+  pendente
+  pago
+  atrasado
+  cancelado
+}
+
+enum OrigemLancamento {
+  unico
+  recorrente
+  parcelado
+}
+
 model Usuario {
   id                    String         @id @default(uuid())
   nome                  String
@@ -36,7 +54,7 @@ model ContaConjunta {
 }
 
 model Categoria {
-  id         Int      @id @default(autoincrement())
+  id         String   @id @default(uuid())
   descricao  String
   gastos     Gasto[]
   createdAt  DateTime @default(now())
@@ -44,20 +62,47 @@ model Categoria {
 }
 
 model Gasto {
-  id              Int           @id @default(autoincrement())
+  id              String        @id @default(uuid())
   descricao       String
+  tipo            TipoGasto
+  status          StatusGasto
+  origemLancamento OrigemLancamento
   valor           Decimal       @db.Decimal(10, 2)
-  categoriaId     Int
+  competencia     DateTime?
+  dataVencimento  DateTime?
+  dataPagamento   DateTime?
+  observacao      String?       @db.Text
+  categoriaId     String
   categoria       Categoria     @relation(fields: [categoriaId], references: [id])
-  dataLancamento  DateTime
   responsavelId   String
   responsavel     Usuario       @relation("Responsavel", fields: [responsavelId], references: [id])
-  contaConjuntaId String
-  contaConjunta   ContaConjunta @relation(fields: [contaConjuntaId], references: [id])
+  contaConjuntaId String?
+  contaConjunta   ContaConjunta? @relation(fields: [contaConjuntaId], references: [id])
+  lancamentosBase LancamentoBase[]
+  deletedAt       DateTime?
   createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@index([categoriaId])
   @@index([responsavelId])
   @@index([contaConjuntaId])
+}
+
+model LancamentoBase {
+  id                    String      @id @default(uuid())
+  gastoId               String
+  gasto                 Gasto       @relation(fields: [gastoId], references: [id])
+  descricao             String
+  valorParcela          Decimal     @db.Decimal(10, 2)
+  numeroParcela         Int
+  dataVencimentoParcela DateTime
+  dataPagamentoParcela  DateTime?
+  status                StatusGasto
+  competencia           DateTime
+  observacao            String?     @db.Text
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  @@index([gastoId])
 }
 

@@ -8,9 +8,12 @@ describe("GET /health", () => {
       .get("/health")
       .expect(200);
 
-    expect(response.body).toEqual({
-      message: "API 'NossoSaldo' está funcionando corretamente",
-    });
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("API 'NossoSaldo'"),
+      }),
+    );
+    expect(response.body.message).toContain("funcionando corretamente");
   });
 
   it("should return JSON content type", async () => {

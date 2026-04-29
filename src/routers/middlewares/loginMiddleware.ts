@@ -7,16 +7,51 @@ export default async function validarToken(req: Request, res: Response, next: Ne
     const token = req.headers["x-access-token"] as string;
 
     if (!token) {
-      return next(createHttpError(401, "Token não fornecido"));
+      return next(createHttpError(401, "Token nÃƒÂ£o fornecido"));
     }
 
-    const payload = await auth.verifyToken(token);
+    const result = await auth.verifyToken(token);
+    const diagnostics = auth.getJwtDiagnostics();
+    const tokenSample = auth.tokenPrefix(token);
 
-    if (!payload) {
-      return next(createHttpError(401, "Token inválido"));
+    if (result.error === "expired") {
+      req.log?.warn(
+        {
+          requestId: req.id,
+          tokenPrefix: tokenSample,
+          authStatus: "expired",
+          ...diagnostics,
+        },
+        "JWT rejected during request authentication",
+      );
+      return next(createHttpError(401, "Token expirado"));
     }
 
-    res.locals.payload = payload;
+    if (result.error === "invalid" || !result.payload) {
+      req.log?.warn(
+        {
+          requestId: req.id,
+          tokenPrefix: tokenSample,
+          authStatus: "invalid",
+          ...diagnostics,
+        },
+        "JWT rejected during request authentication",
+      );
+      return next(createHttpError(401, "Token invÃƒÂ¡lido"));
+    }
+
+    req.log?.info(
+      {
+        requestId: req.id,
+        tokenPrefix: tokenSample,
+        authStatus: "valid",
+        userId: result.payload.id,
+        ...diagnostics,
+      },
+      "JWT accepted during request authentication",
+    );
+
+    res.locals.payload = result.payload;
 
     return next();
   } catch (error) {
