@@ -7,7 +7,7 @@ import { createContaConjuntaSchema } from "../../schemas/contaConjunta/createCon
 
 const contaConjuntaRouter = Router();
 
-contaConjuntaRouter.get("/conta-conjunta", validarToken, (req: Request, res: Response, next: NextFunction) => {
+contaConjuntaRouter.get("/contaConjunta", validarToken, (req: Request, res: Response, next: NextFunction) => {
     contaConjuntaController.listarContasConjuntasPorUsuarioId(req, res, next).catch(next);
 });
 

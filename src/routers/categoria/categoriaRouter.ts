@@ -11,7 +11,7 @@ categoriaRouter.get("/categorias", validarToken, (req: Request, res: Response, n
     categoriaController.buscarTodasCategorias(req, res, next).catch(next);
 });
 
-categoriaRouter.post("/categoria", validarToken, validateUser(createCategoriaSchema), (req: Request, res: Response, next: NextFunction) => {
+categoriaRouter.post("/categorias", validarToken, validateUser(createCategoriaSchema), (req: Request, res: Response, next: NextFunction) => {
     categoriaController.criarCategoria(req, res, next).catch(next);
 });
 

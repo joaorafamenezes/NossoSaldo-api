@@ -25,14 +25,14 @@ describe("GET /health", () => {
   });
 });
 
-describe("POST /usuario", () => {
+describe("POST /usuarios", () => {
   let token: string;
 
   beforeAll(async () => {
     const signedToken = await authorization.sign("test-user-id");
 
     if (!signedToken) {
-      throw new Error("Falha ao gerar token para os testes de /usuario");
+      throw new Error("Falha ao gerar token para os testes de /usuarios");
     }
 
     token = signedToken;
@@ -66,7 +66,7 @@ describe("POST /usuario", () => {
     },
   ])("should return 400 when $name", async ({ userData, expectedDetail }) => {
     const response = await request(app)
-      .post("/usuario")
+      .post("/usuarios")
       .set("x-access-token", token)
       .send(userData)
       .expect(400);

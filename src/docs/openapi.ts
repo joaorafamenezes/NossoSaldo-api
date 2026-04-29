@@ -265,7 +265,7 @@ export const openApiSpec = {
         },
       },
     },
-    "/usuario": {
+    "/usuarios/listarUsuarioPorId": {
       get: {
         tags: ["Usuarios"],
         summary: "Busca o usuario autenticado",
@@ -289,6 +289,42 @@ export const openApiSpec = {
           },
           "404": {
             description: "Usuario nao encontrado",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "500": {
+            description: "Erro interno",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/usuarios": {
+      get: {
+        tags: ["Usuarios"],
+        summary: "Lista os usuarios cadastrados",
+        security: [{ AccessTokenAuth: [] }],
+        responses: {
+          "200": {
+            description: "Lista de usuarios",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "array",
+                  items: { $ref: "#/components/schemas/UsuarioResponse" },
+                },
+              },
+            },
+          },
+          "401": {
+            description: "Token ausente ou invalido",
             content: {
               "application/json": {
                 schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -416,43 +452,7 @@ export const openApiSpec = {
         },
       },
     },
-    "/usuarios": {
-      get: {
-        tags: ["Usuarios"],
-        summary: "Lista os usuarios cadastrados",
-        security: [{ AccessTokenAuth: [] }],
-        responses: {
-          "200": {
-            description: "Lista de usuarios",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "array",
-                  items: { $ref: "#/components/schemas/UsuarioResponse" },
-                },
-              },
-            },
-          },
-          "401": {
-            description: "Token ausente ou invalido",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ErrorResponse" },
-              },
-            },
-          },
-          "500": {
-            description: "Erro interno",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ErrorResponse" },
-              },
-            },
-          },
-        },
-      },
-    },
-    "/atualizaSenha": {
+    "/usuarios/atualizaSenha": {
       patch: {
         tags: ["Usuarios"],
         summary: "Atualiza a senha do usuario autenticado",
@@ -744,7 +744,7 @@ export const openApiSpec = {
         },
       },
     },
-    "/gasto/{id}": {
+    "/gastos/{id}": {
       patch: {
         tags: ["Gastos"],
         summary: "Atualiza um gasto do usuario autenticado pelo ID",

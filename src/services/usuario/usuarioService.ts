@@ -68,14 +68,20 @@ class UsuarioService {
       const senhaHash = autentication.hasPassword(novaSenha);
       const senhaAtual = await usuarioRepository.buscarSenhaUsuario(id);
 
-      if(senhaAtual === novaSenha){
+      const mesmaSenha = autentication.checkPassword(novaSenha, senhaAtual);
+
+      if(mesmaSenha){
         throw createHttpError(400, "A nova senha deve ser diferente da senha atual.");  
       }
 
-      const atualizaSenha = await usuarioRepository.atualizaSenhaUsuario(id, senhaHash);
+      await usuarioRepository.atualizaSenhaUsuario(id, senhaHash);
 
       return true;
-    } catch (error) {
+    } catch (error: any) {
+      if(error.status){
+        throw error;
+      }
+      
         throw createHttpError(500, "Não foi possível atualizar a senha do usuário.");
     }
   }

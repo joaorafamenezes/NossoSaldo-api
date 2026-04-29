@@ -14,21 +14,21 @@ usuarioRouter.get("/usuarios", validarToken, (req: Request, res: Response, next:
     usuarioControler.listarUsuarios(req, res, next).catch(next);
 });
 
-usuarioRouter.get("/usuario", validarToken, (req: Request, res: Response, next: NextFunction) => {
+usuarioRouter.get("/usuarios/listarUsuarioPorId", validarToken, (req: Request, res: Response, next: NextFunction) => {
     usuarioControler.listarUsuarioPorId(req, res, next).catch(next);
 });
 
-usuarioRouter.post("/usuario", validateUser(createUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {
+usuarioRouter.post("/usuarios", validateUser(createUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {
     usuarioControler.criarUsuario(req, res, next).catch(next);
 });
 
 usuarioRouter.post("/login", validateUser(loginSchema), usuarioControler.login.bind(usuarioControler));
 
-usuarioRouter.patch("/usuario", validarToken, validateUser(atualizaUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {
+usuarioRouter.patch("/usuarios", validarToken, validateUser(atualizaUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {
     usuarioControler.atualizaUsuario(req, res, next).catch(next);
 });
 
-usuarioRouter.patch("/atualizaSenha", validarToken, validateUser(atualizaSenhaUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {
+usuarioRouter.patch("/usuarios/atualizaSenha", validarToken, validateUser(atualizaSenhaUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {
     usuarioControler.atualizaSenhaUsuario(req, res, next).catch(next);
 });
 

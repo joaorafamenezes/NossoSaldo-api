@@ -47,7 +47,7 @@ describe("usuarioRouter", () => {
     expect(listarUsuarios).toHaveBeenCalledTimes(1);
   });
 
-  it("should delegate GET /usuario to usuarioControler.listarUsuarioPorId", async () => {
+  it("should delegate GET /usuarios/listarUsuarioPorId to usuarioControler.listarUsuarioPorId", async () => {
     const listarUsuarioPorId = jest.fn(async (_req, res) => {
       res.status(200).json({ id: "1", nome: "Joao" });
     });
@@ -59,14 +59,14 @@ describe("usuarioRouter", () => {
     app.use(express.json());
     app.use(usuarioRouter);
 
-    const response = await request(app).get("/usuario");
+    const response = await request(app).get("/usuarios/listarUsuarioPorId");
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ id: "1", nome: "Joao" });
     expect(listarUsuarioPorId).toHaveBeenCalledTimes(1);
   });
 
-  it("should delegate POST /usuario to usuarioControler.criarUsuario", async () => {
+  it("should delegate POST /usuarios to usuarioControler.criarUsuario", async () => {
     const criarUsuario = jest.fn(async (req, res) => {
       res.status(201).json({ id: "1", ...req.body });
     });
@@ -79,7 +79,7 @@ describe("usuarioRouter", () => {
     app.use(usuarioRouter);
 
     const response = await request(app)
-      .post("/usuario")
+      .post("/usuarios")
       .send({ nome: "Joao", email: "joao@example.com", senha: "123456" });
 
     expect(response.status).toBe(201);
@@ -108,7 +108,7 @@ describe("usuarioRouter", () => {
     expect(login).toHaveBeenCalledTimes(1);
   });
 
-  it("should delegate PATCH /usuario to usuarioControler.atualizaUsuario", async () => {
+  it("should delegate PATCH /usuarios to usuarioControler.atualizaUsuario", async () => {
     const atualizaUsuario = jest.fn(async (req, res) => {
       res.status(200).json({ id: "1", ...req.body });
     });
@@ -121,7 +121,7 @@ describe("usuarioRouter", () => {
     app.use(usuarioRouter);
 
     const response = await request(app)
-      .patch("/usuario")
+      .patch("/usuarios")
       .send({ nome: "Joao Atualizado", email: "joao@example.com" });
 
     expect(response.status).toBe(200);
@@ -129,7 +129,7 @@ describe("usuarioRouter", () => {
     expect(atualizaUsuario).toHaveBeenCalledTimes(1);
   });
 
-  it("should delegate PATCH /atualizaSenha to usuarioControler.atualizaSenhaUsuario", async () => {
+  it("should delegate PATCH /usuarios/atualizaSenha to usuarioControler.atualizaSenhaUsuario", async () => {
     const atualizaSenhaUsuario = jest.fn(async (_req, res) => {
       res.status(200).json({ message: "Senha atualizada com sucesso" });
     });
@@ -142,7 +142,7 @@ describe("usuarioRouter", () => {
     app.use(usuarioRouter);
 
     const response = await request(app)
-      .patch("/atualizaSenha")
+      .patch("/usuarios/atualizaSenha")
       .send({ senha: "novaSenha123" });
 
     expect(response.status).toBe(200);

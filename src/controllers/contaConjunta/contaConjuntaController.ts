@@ -1,11 +1,6 @@
 import { NextFunction, Request, Response } from "express";
-import createHttpError from "http-errors";
-import { usuarioService } from "../../services/usuario/usuarioService";
-import iCriarUsuarioSchema from "../../@types/usuario/iCriarUsuario";
-import iLogin from "../../@types/iLogin";
 import { StatusCodes } from "http-status-codes";
 import { Token } from "../../secure/authorization";
-import iAtualizaUsuarioSchema from "../../@types/usuario/iAtualizaUsuario";
 import { contaConjuntaService } from "../../services/contaConjunta/contaConjuntaService";
 import iCriarContaConjunta from "../../@types/contaConjunta/iCriarContaConjunta";
 

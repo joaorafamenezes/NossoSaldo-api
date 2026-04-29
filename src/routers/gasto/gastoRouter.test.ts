@@ -86,7 +86,7 @@ describe("gastoRouter", () => {
     expect(detalharGasto).toHaveBeenCalledTimes(1);
   });
 
-  it("should delegate POST /gastoUsuarioLogado to gastoController.criarGastoUsuarioLogado", async () => {
+  it("should delegate POST /gastosUsuarioLogado to gastoController.criarGastoUsuarioLogado", async () => {
     const criarGastoUsuarioLogado = jest.fn(async (req, res) => {
       res.status(201).json({ id: "gasto-1", ...req.body });
     });
@@ -99,7 +99,7 @@ describe("gastoRouter", () => {
     app.use(gastoRouter);
 
     const response = await request(app)
-      .post("/gastoUsuarioLogado")
+      .post("/gastosUsuarioLogado")
       .send({ descricao: "Mercado", valor: 199.9 });
 
     expect(response.status).toBe(201);
@@ -107,7 +107,7 @@ describe("gastoRouter", () => {
     expect(criarGastoUsuarioLogado).toHaveBeenCalledTimes(1);
   });
 
-  it("should delegate PATCH /gasto/:id to gastoController.atualizarGasto", async () => {
+  it("should delegate PATCH /gastos/:id to gastoController.atualizarGasto", async () => {
     const atualizarGasto = jest.fn(async (req, res) => {
       res.status(200).json({ id: req.params.id, ...req.body });
     });
@@ -120,7 +120,7 @@ describe("gastoRouter", () => {
     app.use(gastoRouter);
 
     const response = await request(app)
-      .patch("/gasto/gasto-1")
+      .patch("/gastos/gasto-1")
       .send({ descricao: "Mercado atualizado", valor: 199.9 });
 
     expect(response.status).toBe(200);
@@ -128,7 +128,7 @@ describe("gastoRouter", () => {
     expect(atualizarGasto).toHaveBeenCalledTimes(1);
   });
 
-  it("should delegate PATCH /pagarGasto/:id/pagamento to gastoController.pagarGasto", async () => {
+  it("should delegate PATCH /pagarGastos/:id/pagamento to gastoController.pagarGasto", async () => {
     const pagarGasto = jest.fn(async (req, res) => {
       res.status(200).json({ id: req.params.id, ...req.body, status: "pago" });
     });
@@ -141,7 +141,7 @@ describe("gastoRouter", () => {
     app.use(gastoRouter);
 
     const response = await request(app)
-      .patch("/pagarGasto/gasto-1/pagamento")
+      .patch("/pagarGastos/gasto-1/pagamento")
       .send({ dataPagamento: "2026-04-29T12:00:00.000Z" });
 
     expect(response.status).toBe(200);
@@ -153,7 +153,7 @@ describe("gastoRouter", () => {
     expect(pagarGasto).toHaveBeenCalledTimes(1);
   });
 
-  it("should delegate DELETE /gasto/:id to gastoController.deletarGasto", async () => {
+  it("should delegate DELETE /gastos/:id to gastoController.deletarGasto", async () => {
     const deletarGasto = jest.fn(async (_req, res) => {
       res.status(200).json({ message: "Gasto marcado como excluido com sucesso." });
     });
@@ -165,7 +165,7 @@ describe("gastoRouter", () => {
     app.use(express.json());
     app.use(gastoRouter);
 
-    const response = await request(app).delete("/gasto/gasto-1");
+    const response = await request(app).delete("/gastos/gasto-1");
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ message: "Gasto marcado como excluido com sucesso." });

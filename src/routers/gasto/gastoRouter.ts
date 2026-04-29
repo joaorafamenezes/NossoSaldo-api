@@ -21,19 +21,19 @@ gastoRouter.get("/gastos/:id", validarToken, (req: Request, res: Response, next:
     gastoController.detalharGasto(req, res, next).catch(next);
 });
 
-gastoRouter.post("/gastoUsuarioLogado", validarToken, validateUser(createGastoSchema), (req: Request, res: Response, next: NextFunction) => {
+gastoRouter.post("/gastosUsuarioLogado", validarToken, validateUser(createGastoSchema), (req: Request, res: Response, next: NextFunction) => {
     gastoController.criarGastoUsuarioLogado(req, res, next).catch(next);
 });
 
-gastoRouter.patch("/gasto/:id", validarToken, validateUser(updateGastoSchema), (req: Request, res: Response, next: NextFunction) => {
+gastoRouter.patch("/gastos/:id", validarToken, validateUser(updateGastoSchema), (req: Request, res: Response, next: NextFunction) => {
     gastoController.atualizarGasto(req, res, next).catch(next);
 });
 
-gastoRouter.patch("/pagarGasto/:id/pagamento", validarToken, validateUser(pagarGastoSchema), (req: Request, res: Response, next: NextFunction) => {
+gastoRouter.patch("/pagarGastos/:id/pagamento", validarToken, validateUser(pagarGastoSchema), (req: Request, res: Response, next: NextFunction) => {
     gastoController.pagarGasto(req, res, next).catch(next);
 });
 
-gastoRouter.delete("/gasto/:id", validarToken, (req: Request, res: Response, next: NextFunction) => {
+gastoRouter.delete("/gastos/:id", validarToken, (req: Request, res: Response, next: NextFunction) => {
     gastoController.deletarGasto(req, res, next).catch(next);
 });
 

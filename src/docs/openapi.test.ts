@@ -16,16 +16,16 @@ describe("OpenAPI docs", () => {
       }),
     );
     expect(response.body.paths).toHaveProperty("/login");
-    expect(response.body.paths).toHaveProperty("/usuario");
-    expect(response.body.paths["/usuario"]).toHaveProperty("patch");
-    expect(response.body.paths).toHaveProperty("/atualizaSenha");
+    expect(response.body.paths).toHaveProperty("/usuarios");
+    expect(response.body.paths["/usuarios"]).toHaveProperty("get");
+    expect(response.body.paths).toHaveProperty("/usuarios/atualizaSenha");
     expect(response.body.paths).toHaveProperty("/categorias");
     expect(response.body.paths).toHaveProperty("/criarContaConjunta");
     expect(response.body.paths).toHaveProperty("/conta-conjunta");
     expect(response.body.paths).toHaveProperty("/gastos/total/mes-atual");
-    expect(response.body.paths).toHaveProperty("/gasto/{id}");
-    expect(response.body.paths["/gasto/{id}"]).toHaveProperty("patch");
-    expect(response.body.paths["/gasto/{id}"]).toHaveProperty("delete");
+    expect(response.body.paths).toHaveProperty("/gastos/{id}");
+    expect(response.body.paths["/gastos/{id}"]).toHaveProperty("patch");
+    expect(response.body.paths["/gastos/{id}"]).toHaveProperty("delete");
   });
 
   it("should expose the Swagger UI page", async () => {
