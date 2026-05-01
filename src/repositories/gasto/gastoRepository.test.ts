@@ -3,7 +3,6 @@ import { PrismaClient } from "@prisma/client";
 
 jest.mock("@prisma/client", () => {
   const mockGasto = {
-    create: jest.fn(),
     findMany: jest.fn(),
     aggregate: jest.fn(),
     findFirst: jest.fn(),
@@ -13,6 +12,7 @@ jest.mock("@prisma/client", () => {
   return {
     PrismaClient: jest.fn(() => ({
       gasto: mockGasto,
+      $executeRaw: jest.fn(),
     })),
   };
 });
@@ -32,11 +32,13 @@ describe("GastoRepository", () => {
       tipo: "despesa",
       status: "pendente",
       origemLancamento: "unico",
+      numeroParcelas: 1,
       valor: 100,
       categoriaId: "cat-1",
       responsavelId: "user-1",
     };
-    mockPrisma.gasto.create.mockResolvedValue({ id: "gasto-1", ...payload });
+    mockPrisma.$executeRaw.mockResolvedValue(undefined);
+    mockPrisma.gasto.findFirst.mockResolvedValue({ id: "gasto-1", ...payload });
 
     await expect(gastoRepository.criarGastoUsuarioLogado(payload as any)).resolves.toEqual({
       id: "gasto-1",
@@ -45,7 +47,7 @@ describe("GastoRepository", () => {
   });
 
   it("should map create gasto errors to 500", async () => {
-    mockPrisma.gasto.create.mockRejectedValue(new Error("Database unavailable"));
+    mockPrisma.$executeRaw.mockRejectedValue(new Error("Database unavailable"));
 
     await expect(gastoRepository.criarGastoUsuarioLogado({} as any)).rejects.toMatchObject({
       statusCode: 500,

@@ -40,6 +40,7 @@ describe("UsuarioController", () => {
         email: "joao@example.com",
         senha: "senha123",
       } as iCriarUsuarioSchema,
+      query: {},
     };
 
     mockResponse = {
@@ -48,6 +49,7 @@ describe("UsuarioController", () => {
       },
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
+      redirect: jest.fn().mockReturnThis(),
     };
 
     mockNext = jest.fn();
@@ -279,5 +281,71 @@ describe("UsuarioController", () => {
     );
 
     expect(mockNext).toHaveBeenCalledWith(error);
+  });
+
+  it("should request password reset and return 200", async () => {
+    mockRequest.body = { email: "joao@example.com" };
+    (usuarioService.solicitarRecuperacaoSenha as jest.Mock).mockResolvedValue({
+      message: "Se o email informado existir, enviaremos um link para redefinicao de senha.",
+    });
+
+    await usuarioControler.solicitarRecuperacaoSenha(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext as NextFunction,
+    );
+
+    expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
+    expect(mockResponse.json).toHaveBeenCalledWith({
+      message: "Se o email informado existir, enviaremos um link para redefinicao de senha.",
+    });
+  });
+
+  it("should redirect to the frontend when password reset token is valid", async () => {
+    process.env.FRONTEND_RESET_PASSWORD_URL = "http://localhost:5173/redefinir-senha";
+    mockRequest.query = { token: "token-valido" };
+    (usuarioService.validarTokenRecuperacaoSenha as jest.Mock).mockResolvedValue(true);
+
+    await usuarioControler.validarTokenRecuperacaoSenha(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext as NextFunction,
+    );
+
+    expect(mockResponse.redirect).toHaveBeenCalledWith(
+      302,
+      "http://localhost:5173/redefinir-senha?token=token-valido",
+    );
+  });
+
+  it("should forward 400 when password reset token is missing", async () => {
+    mockRequest.query = {};
+
+    await usuarioControler.validarTokenRecuperacaoSenha(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext as NextFunction,
+    );
+
+    expect(mockNext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 400,
+        message: "Token de recuperacao obrigatorio.",
+      }),
+    );
+  });
+
+  it("should reset password with token and return 200", async () => {
+    mockRequest.body = { token: "token-valido", senha: "novaSenha123" };
+    (usuarioService.redefinirSenhaComToken as jest.Mock).mockResolvedValue(true);
+
+    await usuarioControler.redefinirSenhaComToken(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext as NextFunction,
+    );
+
+    expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
+    expect(mockResponse.json).toHaveBeenCalledWith({ message: "Senha redefinida com sucesso" });
   });
 });

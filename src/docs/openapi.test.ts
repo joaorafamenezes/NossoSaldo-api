@@ -16,6 +16,10 @@ describe("OpenAPI docs", () => {
       }),
     );
     expect(response.body.paths).toHaveProperty("/login");
+    expect(response.body.paths).toHaveProperty("/usuarios/esqueci-senha");
+    expect(response.body.paths).toHaveProperty("/usuarios/solicitarRedefinicaoSenha");
+    expect(response.body.paths).toHaveProperty("/usuarios/redefinir-senha/validar");
+    expect(response.body.paths).toHaveProperty("/usuarios/redefinir-senha");
     expect(response.body.paths).toHaveProperty("/usuarios");
     expect(response.body.paths["/usuarios"]).toHaveProperty("get");
     expect(response.body.paths).toHaveProperty("/usuarios/atualizaSenha");

@@ -3,6 +3,7 @@ export default interface iCriarGasto {
     tipo: "receita" | "despesa";
     status: "pendente" | "pago" | "atrasado" | "cancelado";
     origemLancamento: "unico" | "recorrente" | "parcelado";
+    numeroParcelas?: number;
     valor: number;
     competencia?: Date;
     dataVencimento?: Date;

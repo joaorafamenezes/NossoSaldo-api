@@ -30,6 +30,7 @@ model Usuario {
   nome                  String
   email                 String         @unique
   senha                 String
+  passwordResetTokens   PasswordResetToken[]
   contasComoPrimeiro    ContaConjunta[] @relation("Usuario1")
   contasComoSegundo     ContaConjunta[] @relation("Usuario2")
   gastosComoResponsavel Gasto[]        @relation("Responsavel")
@@ -56,6 +57,7 @@ model ContaConjunta {
 model Categoria {
   id         String   @id @default(uuid())
   descricao  String
+  iconName   String   @default("🏷️")
   gastos     Gasto[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -67,6 +69,7 @@ model Gasto {
   tipo            TipoGasto
   status          StatusGasto
   origemLancamento OrigemLancamento
+  numeroParcelas  Int           @default(1)
   valor           Decimal       @db.Decimal(10, 2)
   competencia     DateTime?
   dataVencimento  DateTime?
@@ -104,5 +107,18 @@ model LancamentoBase {
   updatedAt             DateTime    @updatedAt
 
   @@index([gastoId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([usuarioId])
+  @@index([expiresAt])
 }
 

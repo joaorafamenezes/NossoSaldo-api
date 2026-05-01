@@ -7,6 +7,8 @@ import { createUsuarioSchema } from "../../schemas/usuario/createUsuarioSchema";
 import { loginSchema } from "../../schemas/login/loginSchema";
 import { atualizaUsuarioSchema } from "../../schemas/usuario/atualizaUsuarioSchema";
 import { atualizaSenhaUsuarioSchema } from "../../schemas/usuario/atualizaSenhaUsuarioSchema";
+import { solicitarResetSenhaSchema } from "../../schemas/usuario/solicitarResetSenhaSchema";
+import { redefinirSenhaComTokenSchema } from "../../schemas/usuario/redefinirSenhaComTokenSchema";
 
 const usuarioRouter = Router();
 
@@ -23,6 +25,22 @@ usuarioRouter.post("/usuarios", validateUser(createUsuarioSchema), (req: Request
 });
 
 usuarioRouter.post("/login", validateUser(loginSchema), usuarioControler.login.bind(usuarioControler));
+
+usuarioRouter.post("/usuarios/esqueci-senha", validateUser(solicitarResetSenhaSchema), (req: Request, res: Response, next: NextFunction) => {
+    usuarioControler.solicitarRecuperacaoSenha(req, res, next).catch(next);
+});
+
+usuarioRouter.post("/usuarios/solicitarRedefinicaoSenha", validateUser(solicitarResetSenhaSchema), (req: Request, res: Response, next: NextFunction) => {
+    usuarioControler.solicitarRecuperacaoSenha(req, res, next).catch(next);
+});
+
+usuarioRouter.get("/usuarios/redefinir-senha/validar", (req: Request, res: Response, next: NextFunction) => {
+    usuarioControler.validarTokenRecuperacaoSenha(req, res, next).catch(next);
+});
+
+usuarioRouter.patch("/usuarios/redefinir-senha", validateUser(redefinirSenhaComTokenSchema), (req: Request, res: Response, next: NextFunction) => {
+    usuarioControler.redefinirSenhaComToken(req, res, next).catch(next);
+});
 
 usuarioRouter.patch("/usuarios", validarToken, validateUser(atualizaUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {
     usuarioControler.atualizaUsuario(req, res, next).catch(next);

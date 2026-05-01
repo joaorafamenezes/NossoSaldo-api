@@ -65,6 +65,21 @@ export const openApiSpec = {
         },
         required: ["senha"],
       },
+      SolicitarResetSenhaRequest: {
+        type: "object",
+        properties: {
+          email: { type: "string", format: "email", example: "joao@example.com" },
+        },
+        required: ["email"],
+      },
+      RedefinirSenhaComTokenRequest: {
+        type: "object",
+        properties: {
+          token: { type: "string", example: "token-de-recuperacao" },
+          senha: { type: "string", minLength: 6, maxLength: 50, example: "novaSenha123" },
+        },
+        required: ["token", "senha"],
+      },
       LoginRequest: {
         type: "object",
         properties: {
@@ -77,8 +92,9 @@ export const openApiSpec = {
         type: "object",
         properties: {
           descricao: { type: "string", minLength: 2, maxLength: 50, example: "Alimentacao" },
+          iconName: { type: "string", example: "🍔" },
         },
-        required: ["descricao"],
+        required: ["descricao", "iconName"],
       },
       CreateContaConjuntaRequest: {
         type: "object",
@@ -96,6 +112,7 @@ export const openApiSpec = {
           tipo: { type: "string", enum: ["receita", "despesa"] },
           status: { type: "string", enum: ["pendente", "pago", "atrasado", "cancelado"] },
           origemLancamento: { type: "string", enum: ["unico", "recorrente", "parcelado"] },
+          numeroParcelas: { type: "integer", example: 3, minimum: 1 },
           valor: { type: "number", example: 250.75 },
           competencia: { type: "string", format: "date-time" },
           dataVencimento: { type: "string", format: "date-time" },
@@ -141,10 +158,11 @@ export const openApiSpec = {
         properties: {
           id: { type: "string", format: "uuid", example: "7c7f7d16-6826-4b9b-82f6-4a68ad1f20d8" },
           descricao: { type: "string", example: "Alimentacao" },
+          iconName: { type: "string", example: "🍔" },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
         },
-        required: ["id", "descricao", "createdAt", "updatedAt"],
+        required: ["id", "descricao", "iconName", "createdAt", "updatedAt"],
       },
       ContaConjuntaResponse: {
         type: "object",
@@ -256,6 +274,162 @@ export const openApiSpec = {
           },
           "500": {
             description: "Erro interno ao autenticar",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/usuarios/esqueci-senha": {
+      post: {
+        tags: ["Auth"],
+        summary: "Solicita o envio do email de redefinicao de senha",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/SolicitarResetSenhaRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Solicitacao processada com sucesso",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/MessageResponse" },
+              },
+            },
+          },
+          "400": {
+            description: "Erro de validacao no payload",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ValidationErrorResponse" },
+              },
+            },
+          },
+          "500": {
+            description: "Erro interno ao processar a recuperacao de senha",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/usuarios/solicitarRedefinicaoSenha": {
+      post: {
+        tags: ["Auth"],
+        summary: "Solicita o envio do email de redefinicao de senha",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/SolicitarResetSenhaRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Solicitacao processada com sucesso",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/MessageResponse" },
+              },
+            },
+          },
+          "400": {
+            description: "Erro de validacao no payload",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ValidationErrorResponse" },
+              },
+            },
+          },
+          "500": {
+            description: "Erro interno ao processar a recuperacao de senha",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/usuarios/redefinir-senha/validar": {
+      get: {
+        tags: ["Auth"],
+        summary: "Valida o token do email e redireciona para a tela de troca de senha",
+        parameters: [
+          {
+            in: "query",
+            name: "token",
+            required: true,
+            schema: { type: "string" },
+            description: "Token de recuperacao enviado por email",
+          },
+        ],
+        responses: {
+          "302": {
+            description: "Token valido e redirecionamento realizado",
+          },
+          "400": {
+            description: "Token invalido ou expirado",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "500": {
+            description: "Erro interno ao validar o token",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/usuarios/redefinir-senha": {
+      patch: {
+        tags: ["Auth"],
+        summary: "Redefine a senha usando um token valido de recuperacao",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/RedefinirSenhaComTokenRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Senha redefinida com sucesso",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/MessageResponse" },
+              },
+            },
+          },
+          "400": {
+            description: "Token invalido, expirado ou payload invalido",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "500": {
+            description: "Erro interno ao redefinir a senha",
             content: {
               "application/json": {
                 schema: { $ref: "#/components/schemas/ErrorResponse" },

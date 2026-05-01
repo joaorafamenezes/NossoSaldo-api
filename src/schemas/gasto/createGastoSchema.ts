@@ -17,6 +17,16 @@ const createGastoSchema = joi.object({
         'any.only': 'A origem do lancamento deve ser unico, recorrente ou parcelado.',
         'any.required': 'A origem do lancamento e obrigatoria.',
     }),
+    numeroParcelas: joi.when('origemLancamento', {
+        is: 'parcelado',
+        then: joi.number().integer().min(2).required().messages({
+            'number.base': 'O numero de parcelas deve ser um numero.',
+            'number.integer': 'O numero de parcelas deve ser inteiro.',
+            'number.min': 'O numero de parcelas deve ser pelo menos 2.',
+            'any.required': 'Informe o numero de parcelas para um lancamento parcelado.',
+        }),
+        otherwise: joi.number().integer().min(1).optional(),
+    }),
     valor: joi.number().positive().required().messages({
         'number.base': 'O valor deve ser um numero.',
     }),

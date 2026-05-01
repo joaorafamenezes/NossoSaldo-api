@@ -15,12 +15,12 @@ describe('CategoriaService', () => {
 
   describe('criarCategoria', () => {
     it('should delegate category creation to repository', async () => {
-      const categoria = { id: 'cat-1', descricao: 'Alimentacao' };
+      const categoria = { id: 'cat-1', descricao: 'Alimentacao', iconName: '🍔' };
       (categoriaRepository.criarCategoria as jest.Mock).mockResolvedValue(categoria);
 
-      const result = await categoriaService.criarCategoria({ descricao: 'Alimentacao' });
+      const result = await categoriaService.criarCategoria({ descricao: 'Alimentacao', iconName: '🍔' });
 
-      expect(categoriaRepository.criarCategoria).toHaveBeenCalledWith({ descricao: 'Alimentacao' });
+      expect(categoriaRepository.criarCategoria).toHaveBeenCalledWith({ descricao: 'Alimentacao', iconName: '🍔' });
       expect(result).toEqual(categoria);
     });
 
@@ -28,7 +28,7 @@ describe('CategoriaService', () => {
       const error = new Error('Falha ao criar categoria');
       (categoriaRepository.criarCategoria as jest.Mock).mockRejectedValue(error);
 
-      await expect(categoriaService.criarCategoria({ descricao: 'Transporte' })).rejects.toThrow(
+      await expect(categoriaService.criarCategoria({ descricao: 'Transporte', iconName: '🚗' })).rejects.toThrow(
         'Falha ao criar categoria'
       );
     });
@@ -37,8 +37,8 @@ describe('CategoriaService', () => {
   describe('buscarTodasCategorias', () => {
     it('should return all categories from repository', async () => {
       const categorias = [
-        { id: 'cat-1', descricao: 'Alimentacao' },
-        { id: 'cat-2', descricao: 'Moradia' },
+        { id: 'cat-1', descricao: 'Alimentacao', iconName: '🍔' },
+        { id: 'cat-2', descricao: 'Moradia', iconName: '🏠' },
       ];
 
       (categoriaRepository.buscarTodasCategorias as jest.Mock).mockResolvedValue(categorias);

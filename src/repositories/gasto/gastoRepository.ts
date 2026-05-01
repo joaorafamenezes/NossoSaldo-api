@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { randomUUID } from "crypto";
 import { createRepositoryError } from "../../errors/httpError";
 import iAtualizarGasto from "../../@types/gasto/iAtualizarGasto";
 import iCriarGasto from "../../@types/gasto/iCriarGasto";
@@ -8,11 +9,52 @@ const prisma = new PrismaClient();
 class GastoRepository {
     async criarGastoUsuarioLogado(gasto: iCriarGasto) {
         try {
-            return await prisma.gasto.create({
-                data: gasto,
+            const id = randomUUID();
+
+            await prisma.$executeRaw`
+                INSERT INTO Gasto (
+                    id,
+                    descricao,
+                    tipo,
+                    status,
+                    origemLancamento,
+                    numeroParcelas,
+                    valor,
+                    competencia,
+                    dataVencimento,
+                    dataPagamento,
+                    observacao,
+                    categoriaId,
+                    responsavelId,
+                    contaConjuntaId,
+                    createdAt,
+                    updatedAt
+                )
+                VALUES (
+                    ${id},
+                    ${gasto.descricao},
+                    ${gasto.tipo},
+                    ${gasto.status},
+                    ${gasto.origemLancamento},
+                    ${gasto.numeroParcelas ?? 1},
+                    ${gasto.valor},
+                    ${gasto.competencia ?? null},
+                    ${gasto.dataVencimento ?? null},
+                    ${gasto.dataPagamento ?? null},
+                    ${gasto.observacao ?? null},
+                    ${gasto.categoriaId},
+                    ${gasto.responsavelId},
+                    ${gasto.contaConjuntaId ?? null},
+                    CURRENT_TIMESTAMP(3),
+                    CURRENT_TIMESTAMP(3)
+                )
+            `;
+
+            return await prisma.gasto.findFirst({
+                where: { id },
             });
         } catch (error) {
-            throw createRepositoryError(error, "NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel criar o gasto.");
+            throw createRepositoryError(error, "Nao foi possivel criar o gasto.");
         }
     }
 
@@ -26,7 +68,7 @@ class GastoRepository {
                 orderBy: { createdAt: "desc" },
             });
         } catch (error) {
-            throw createRepositoryError(error, "NÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­vel listar os gastos.");
+            throw createRepositoryError(error, "Nao foi possivel listar os gastos.");
         }
     }
 
@@ -52,7 +94,7 @@ class GastoRepository {
 
             return Number(resultado._sum.valor ?? 0);
         } catch (error) {
-            throw createRepositoryError(error, "NÃ£o foi possÃ­vel calcular o total gasto no mÃªs atual.");
+            throw createRepositoryError(error, "Nao foi possivel calcular o total gasto no mes atual.");
         }
     }
 
@@ -65,7 +107,7 @@ class GastoRepository {
                 },
             });
         } catch (error) {
-            throw createRepositoryError(error, "NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel buscar o gasto.");
+            throw createRepositoryError(error, "Nao foi possivel buscar o gasto.");
         }
     }
 
@@ -79,7 +121,7 @@ class GastoRepository {
                 },
             });
         } catch (error) {
-            throw createRepositoryError(error, "NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel pagar o gasto.");
+            throw createRepositoryError(error, "Nao foi possivel pagar o gasto.");
         }
     }
 
@@ -90,7 +132,7 @@ class GastoRepository {
                 data,
             });
         } catch (error) {
-            throw createRepositoryError(error, "NÃ£o foi possÃ­vel atualizar o gasto.");
+            throw createRepositoryError(error, "Nao foi possivel atualizar o gasto.");
         }
     }
 
@@ -104,7 +146,7 @@ class GastoRepository {
                 },
             });
         } catch (error) {
-            throw createRepositoryError(error, "NÃƒÆ’Ã‚Â£o foi possÃƒÆ’Ã‚Â­vel excluir o gasto.");
+            throw createRepositoryError(error, "Nao foi possivel excluir o gasto.");
         }
     }
 }

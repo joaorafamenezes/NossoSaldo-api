@@ -1,11 +1,15 @@
 import { usuarioService } from "./usuarioService";
 import { usuarioRepository } from "../../repositories/usuario/usuarioRepository";
+import { passwordResetTokenRepository } from "../../repositories/usuario/passwordResetTokenRepository";
 import iCriarUsuarioSchema from "../../@types/usuario/iCriarUsuario";
 import iLogin from "../../@types/iLogin";
+import { mailer } from "../../lib/mailer";
 import autentication from "../../secure/autentication";
 import authorization from "../../secure/authorization";
 
 jest.mock("../../repositories/usuario/usuarioRepository");
+jest.mock("../../repositories/usuario/passwordResetTokenRepository");
+jest.mock("../../lib/mailer");
 jest.mock("../../secure/autentication");
 jest.mock("../../secure/authorization");
 
@@ -36,6 +40,7 @@ describe("UsuarioService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (autentication.hasPassword as jest.Mock).mockReturnValue("senha-criptografada");
+    (autentication.checkPassword as jest.Mock).mockReturnValue(false);
   });
 
   it("should create a user successfully when email does not exist", async () => {
@@ -57,7 +62,7 @@ describe("UsuarioService", () => {
 
     await expect(usuarioService.criarUsuario(mockUsuarioData)).rejects.toHaveProperty(
       "message",
-      "Usuário já existe com esse email no banco de dados.",
+      "UsuÃ¡rio jÃ¡ existe com esse email no banco de dados.",
     );
   });
 
@@ -80,7 +85,6 @@ describe("UsuarioService", () => {
       id: "user-1",
       senha: "hash-da-senha",
     });
-    (autentication.checkPassword as jest.Mock).mockReturnValue(false);
 
     await expect(usuarioService.login(loginData)).resolves.toBeNull();
   });
@@ -114,7 +118,7 @@ describe("UsuarioService", () => {
 
     await expect(usuarioService.login(loginData)).rejects.toHaveProperty(
       "message",
-      "Não foi possível gerar o token.",
+      "NÃ£o foi possÃ­vel gerar o token.",
     );
   });
 
@@ -147,7 +151,7 @@ describe("UsuarioService", () => {
 
     await expect(usuarioService.atualizaUsuario("1", { nome: "Joao Atualizado" })).rejects.toHaveProperty(
       "message",
-      "Não foi possível atualizar o usuário.",
+      "NÃ£o foi possÃ­vel atualizar o usuÃ¡rio.",
     );
   });
 
@@ -164,22 +168,98 @@ describe("UsuarioService", () => {
     expect(usuarioRepository.atualizaSenhaUsuario).toHaveBeenCalledWith("1", "senha-criptografada");
   });
 
+  it("should throw 400 when the new password matches the current password", async () => {
+    (usuarioRepository.buscarSenhaUsuario as jest.Mock).mockResolvedValue("hash-antigo");
+    (autentication.checkPassword as jest.Mock).mockReturnValue(true);
+
+    await expect(usuarioService.atualizaSenhaUsuario("1", "novaSenha123")).rejects.toHaveProperty(
+      "message",
+      "A nova senha deve ser diferente da senha atual.",
+    );
+  });
+
   it("should throw 500 when password update fails", async () => {
     (usuarioRepository.buscarSenhaUsuario as jest.Mock).mockResolvedValue("hash-antigo");
     (usuarioRepository.atualizaSenhaUsuario as jest.Mock).mockRejectedValue(new Error("falha"));
 
     await expect(usuarioService.atualizaSenhaUsuario("1", "novaSenha123")).rejects.toHaveProperty(
       "message",
-      "Não foi possível atualizar a senha do usuário.",
+      "NÃ£o foi possÃ­vel atualizar a senha do usuÃ¡rio.",
     );
   });
 
-  it("should throw 500 when the new password matches the current password check", async () => {
-    (usuarioRepository.buscarSenhaUsuario as jest.Mock).mockResolvedValue("novaSenha123");
+  it("should send a password reset email when the user exists", async () => {
+    process.env.FRONTEND_RESET_PASSWORD_URL = "http://localhost:5173/redefinir-senha";
+    (usuarioRepository.buscarUsuarioPorEmail as jest.Mock).mockResolvedValue({
+      id: "user-1",
+      nome: "Joao Silva",
+      email: "joao@example.com",
+    });
+    (passwordResetTokenRepository.invalidarTokensAtivosPorUsuarioId as jest.Mock).mockResolvedValue({ count: 1 });
+    (passwordResetTokenRepository.criarToken as jest.Mock).mockResolvedValue({ id: "token-1" });
+    (mailer.sendPasswordResetEmail as jest.Mock).mockResolvedValue(undefined);
 
-    await expect(usuarioService.atualizaSenhaUsuario("1", "novaSenha123")).rejects.toHaveProperty(
+    await expect(usuarioService.solicitarRecuperacaoSenha({ email: "joao@example.com" })).resolves.toEqual({
+      message: "Se o email informado existir, enviaremos um link para redefinicao de senha.",
+    });
+    expect(passwordResetTokenRepository.invalidarTokensAtivosPorUsuarioId).toHaveBeenCalledWith("user-1");
+    expect(passwordResetTokenRepository.criarToken).toHaveBeenCalledTimes(1);
+    expect(mailer.sendPasswordResetEmail).toHaveBeenCalledTimes(1);
+    expect(mailer.sendPasswordResetEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "joao@example.com",
+        validationUrl: expect.stringMatching(/^http:\/\/localhost:5173\/redefinir-senha\?token=/),
+      }),
+    );
+  });
+
+  it("should not fail password reset request when the user does not exist", async () => {
+    (usuarioRepository.buscarUsuarioPorEmail as jest.Mock).mockResolvedValue(null);
+
+    await expect(usuarioService.solicitarRecuperacaoSenha({ email: "joao@example.com" })).resolves.toEqual({
+      message: "Se o email informado existir, enviaremos um link para redefinicao de senha.",
+    });
+    expect(passwordResetTokenRepository.criarToken).not.toHaveBeenCalled();
+    expect(mailer.sendPasswordResetEmail).not.toHaveBeenCalled();
+  });
+
+  it("should validate a password reset token successfully", async () => {
+    (passwordResetTokenRepository.buscarTokenValidoPorHash as jest.Mock).mockResolvedValue({
+      id: "token-1",
+      usuarioId: "user-1",
+    });
+
+    await expect(usuarioService.validarTokenRecuperacaoSenha("token-valido")).resolves.toBe(true);
+  });
+
+  it("should throw 400 when password reset token is invalid", async () => {
+    (passwordResetTokenRepository.buscarTokenValidoPorHash as jest.Mock).mockResolvedValue(null);
+
+    await expect(usuarioService.validarTokenRecuperacaoSenha("token-invalido")).rejects.toHaveProperty(
       "message",
-      "Não foi possível atualizar a senha do usuário.",
+      "Token de recuperacao invalido ou expirado.",
+    );
+  });
+
+  it("should reset password with a valid token", async () => {
+    (passwordResetTokenRepository.buscarTokenValidoPorHash as jest.Mock).mockResolvedValue({
+      id: "token-1",
+      usuarioId: "user-1",
+    });
+    (usuarioRepository.buscarSenhaUsuario as jest.Mock).mockResolvedValue("hash-antigo");
+    (usuarioRepository.atualizaSenhaUsuario as jest.Mock).mockResolvedValue({ id: "user-1" });
+    (passwordResetTokenRepository.marcarTokenComoUsado as jest.Mock).mockResolvedValue({ id: "token-1" });
+
+    await expect(usuarioService.redefinirSenhaComToken({ token: "token-valido", senha: "novaSenha123" })).resolves.toBe(true);
+    expect(passwordResetTokenRepository.marcarTokenComoUsado).toHaveBeenCalledWith("token-1");
+  });
+
+  it("should throw 400 when resetting password with invalid token", async () => {
+    (passwordResetTokenRepository.buscarTokenValidoPorHash as jest.Mock).mockResolvedValue(null);
+
+    await expect(usuarioService.redefinirSenhaComToken({ token: "token-invalido", senha: "novaSenha123" })).rejects.toHaveProperty(
+      "message",
+      "Token de recuperacao invalido ou expirado.",
     );
   });
 });

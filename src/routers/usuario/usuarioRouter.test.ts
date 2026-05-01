@@ -21,6 +21,9 @@ describe("usuarioRouter", () => {
         listarUsuarioPorId: jest.fn(),
         criarUsuario: jest.fn(),
         login: jest.fn(),
+        solicitarRecuperacaoSenha: jest.fn(),
+        validarTokenRecuperacaoSenha: jest.fn(),
+        redefinirSenhaComToken: jest.fn(),
         atualizaUsuario: jest.fn(),
         atualizaSenhaUsuario: jest.fn(),
         ...overrides,
@@ -106,6 +109,88 @@ describe("usuarioRouter", () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ auth: true, token: "jwt-token" });
     expect(login).toHaveBeenCalledTimes(1);
+  });
+
+  it("should delegate POST /usuarios/esqueci-senha to usuarioControler.solicitarRecuperacaoSenha", async () => {
+    const solicitarRecuperacaoSenha = jest.fn(async (_req, res) => {
+      res.status(200).json({ message: "Email enviado" });
+    });
+
+    setupMocks({ solicitarRecuperacaoSenha });
+
+    const { usuarioRouter } = await import("./usuarioRouter");
+    const app = express();
+    app.use(express.json());
+    app.use(usuarioRouter);
+
+    const response = await request(app)
+      .post("/usuarios/esqueci-senha")
+      .send({ email: "joao@example.com" });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ message: "Email enviado" });
+    expect(solicitarRecuperacaoSenha).toHaveBeenCalledTimes(1);
+  });
+
+  it("should delegate POST /usuarios/solicitarRedefinicaoSenha to usuarioControler.solicitarRecuperacaoSenha", async () => {
+    const solicitarRecuperacaoSenha = jest.fn(async (_req, res) => {
+      res.status(200).json({ message: "Email enviado" });
+    });
+
+    setupMocks({ solicitarRecuperacaoSenha });
+
+    const { usuarioRouter } = await import("./usuarioRouter");
+    const app = express();
+    app.use(express.json());
+    app.use(usuarioRouter);
+
+    const response = await request(app)
+      .post("/usuarios/solicitarRedefinicaoSenha")
+      .send({ email: "joao@example.com" });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ message: "Email enviado" });
+    expect(solicitarRecuperacaoSenha).toHaveBeenCalledTimes(1);
+  });
+
+  it("should delegate GET /usuarios/redefinir-senha/validar to usuarioControler.validarTokenRecuperacaoSenha", async () => {
+    const validarTokenRecuperacaoSenha = jest.fn(async (_req, res) => {
+      res.redirect(302, "http://localhost:5173/redefinir-senha?token=abc");
+    });
+
+    setupMocks({ validarTokenRecuperacaoSenha });
+
+    const { usuarioRouter } = await import("./usuarioRouter");
+    const app = express();
+    app.use(express.json());
+    app.use(usuarioRouter);
+
+    const response = await request(app).get("/usuarios/redefinir-senha/validar?token=abc");
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:5173/redefinir-senha?token=abc");
+    expect(validarTokenRecuperacaoSenha).toHaveBeenCalledTimes(1);
+  });
+
+  it("should delegate PATCH /usuarios/redefinir-senha to usuarioControler.redefinirSenhaComToken", async () => {
+    const redefinirSenhaComToken = jest.fn(async (_req, res) => {
+      res.status(200).json({ message: "Senha redefinida com sucesso" });
+    });
+
+    setupMocks({ redefinirSenhaComToken });
+
+    const { usuarioRouter } = await import("./usuarioRouter");
+    const app = express();
+    app.use(express.json());
+    app.use(usuarioRouter);
+
+    const response = await request(app)
+      .patch("/usuarios/redefinir-senha")
+      .send({ token: "abcdefghijklmnopqrstuvwxyz", senha: "novaSenha123" });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ message: "Senha redefinida com sucesso" });
+    expect(redefinirSenhaComToken).toHaveBeenCalledTimes(1);
   });
 
   it("should delegate PATCH /usuarios to usuarioControler.atualizaUsuario", async () => {

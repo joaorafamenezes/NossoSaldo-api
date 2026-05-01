@@ -6,6 +6,8 @@ import iLogin from "../../@types/iLogin";
 import { StatusCodes } from "http-status-codes";
 import { Token } from "../../secure/authorization";
 import iAtualizaUsuarioSchema from "../../@types/usuario/iAtualizaUsuario";
+import iRedefinirSenhaComToken from "../../@types/usuario/iRedefinirSenhaComToken";
+import iSolicitarResetSenha from "../../@types/usuario/iSolicitarResetSenha";
 import authorization from "../../secure/authorization";
 
 class UsuarioController {
@@ -97,6 +99,51 @@ class UsuarioController {
       }
 
       return res.status(StatusCodes.OK).json({ message: "Senha atualizada com sucesso" });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async solicitarRecuperacaoSenha(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data: iSolicitarResetSenha = req.body;
+      const resultado = await usuarioService.solicitarRecuperacaoSenha(data);
+      return res.status(StatusCodes.OK).json(resultado);
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async validarTokenRecuperacaoSenha(req: Request, res: Response, next: NextFunction) {
+    try {
+      const token = `${req.query.token ?? ""}`.trim();
+
+      if (!token) {
+        return next(createHttpError(400, "Token de recuperacao obrigatorio."));
+      }
+
+      await usuarioService.validarTokenRecuperacaoSenha(token);
+
+      const redirectBaseUrl = process.env.FRONTEND_RESET_PASSWORD_URL;
+
+      if (!redirectBaseUrl) {
+        return next(createHttpError(500, "URL de redefinicao de senha nao configurada."));
+      }
+
+      const redirectUrl = new URL(redirectBaseUrl);
+      redirectUrl.searchParams.set("token", token);
+
+      return res.redirect(302, redirectUrl.toString());
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async redefinirSenhaComToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data: iRedefinirSenhaComToken = req.body;
+      await usuarioService.redefinirSenhaComToken(data);
+      return res.status(StatusCodes.OK).json({ message: "Senha redefinida com sucesso" });
     } catch (error) {
       return next(error);
     }
