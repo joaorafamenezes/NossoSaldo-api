@@ -6,10 +6,14 @@ const prisma = new PrismaClient();
 
 class ContaConjuntaRepository {
 
-    async criarContaConjunta(contaConjunta: iCriarContaConjunta) {
+    async criarContaConjunta(nomeConta: string, usuarioConjuntoValidado: string, usuarioLogadoValidado: string) {
         try {
             return await prisma.contaConjunta.create({
-                data: contaConjunta,
+                data: {
+                    nomeConta,
+                    usuario1Id: usuarioConjuntoValidado,
+                    usuario2Id: usuarioLogadoValidado
+                }
             });
         } catch (error) {
             throw createRepositoryError(error, "Não foi possível criar a conta conjunta.");
@@ -45,6 +49,22 @@ class ContaConjuntaRepository {
                         { usuario1Id: usuarioId },
                         { usuario2Id: usuarioId }
                     ]
+                },
+                include: {
+                    usuario1: {
+                        select: {
+                            id: true,
+                            nome: true,
+                            email: true
+                        }
+                    },
+                    usuario2: {
+                        select: {
+                            id: true,
+                            nome: true,
+                            email: true
+                        }
+                    }
                 }
             });
         } catch (error) {

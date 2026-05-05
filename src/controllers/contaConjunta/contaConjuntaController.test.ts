@@ -47,9 +47,9 @@ describe("ContaConjuntaController", () => {
       mockNext,
     );
 
-    expect(contaConjuntaService.criarContaConjunta).toHaveBeenCalledWith(mockRequest.body);
+    expect(contaConjuntaService.criarContaConjunta).toHaveBeenCalledWith(mockRequest.body, "user-1");
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.CREATED);
-    expect(mockResponse.json).toHaveBeenCalledWith(mockContaConjunta);
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: mockContaConjunta });
   });
 
   it("should call next when create conta conjunta fails", async () => {
@@ -76,7 +76,10 @@ describe("ContaConjuntaController", () => {
 
     expect(contaConjuntaService.listarContasConjuntasPorUsuarioId).toHaveBeenCalledWith("user-1");
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
-    expect(mockResponse.json).toHaveBeenCalledWith([mockContaConjunta]);
+    expect(mockResponse.json).toHaveBeenCalledWith({
+      data: [mockContaConjunta],
+      meta: { total: 1 },
+    });
   });
 
   it("should call next when listing contas conjuntas fails", async () => {

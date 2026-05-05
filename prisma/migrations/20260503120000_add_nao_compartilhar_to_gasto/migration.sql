@@ -1,0 +1,2 @@
+ALTER TABLE `Gasto`
+ADD COLUMN `naoCompartilhar` BOOLEAN NOT NULL DEFAULT false;

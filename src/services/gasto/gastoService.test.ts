@@ -1,6 +1,7 @@
 import { gastoService } from "./gastoService";
 import { gastoRepository } from "../../repositories/gasto/gastoRepository";
 import { usuarioRepository } from "../../repositories/usuario/usuarioRepository";
+import { contaConjuntaRepository } from "../../repositories/contaConjunta/contaConjuntaRepository";
 
 jest.mock("../../repositories/gasto/gastoRepository", () => ({
   gastoRepository: {
@@ -20,9 +21,16 @@ jest.mock("../../repositories/usuario/usuarioRepository", () => ({
   },
 }));
 
+jest.mock("../../repositories/contaConjunta/contaConjuntaRepository", () => ({
+  contaConjuntaRepository: {
+    listarContasConjuntasPorUsuarioId: jest.fn(),
+  },
+}));
+
 describe("GastoService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([]);
   });
 
   describe("criarGastoUsuarioLogado", () => {
@@ -123,6 +131,21 @@ describe("GastoService", () => {
         statusCode: 403,
       });
     });
+
+    it("should return shared gasto details when user belongs to the joint account", async () => {
+      const gasto = {
+        id: "gasto-1",
+        responsavelId: "user-2",
+        naoCompartilhar: false,
+      };
+
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue(gasto);
+      (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([
+        { id: "conta-1", usuario1Id: "user-1", usuario2Id: "user-2" },
+      ]);
+
+      await expect(gastoService.detalharGastoPorId("gasto-1", "user-1")).resolves.toEqual(gasto);
+    });
   });
 
   describe("atualizarGasto", () => {
@@ -147,10 +170,9 @@ describe("GastoService", () => {
     it("should throw 404 when gasto does not exist during update", async () => {
       (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue(null);
 
-      await expect(gastoService.atualizarGasto("gasto-inexistente", { descricao: "Novo nome" }, "user-1")).rejects.toHaveProperty(
-        "message",
-        "Gasto nÃ£o encontrado.",
-      );
+      await expect(gastoService.atualizarGasto("gasto-inexistente", { descricao: "Novo nome" }, "user-1")).rejects.toMatchObject({
+        statusCode: 404,
+      });
     });
 
     it("should throw 403 when gasto belongs to another user during update", async () => {
@@ -159,10 +181,9 @@ describe("GastoService", () => {
         responsavelId: "user-2",
       });
 
-      await expect(gastoService.atualizarGasto("gasto-1", { descricao: "Novo nome" }, "user-1")).rejects.toHaveProperty(
-        "message",
-        "UsuÃ¡rio nÃ£o autorizado a atualizar este gasto.",
-      );
+      await expect(gastoService.atualizarGasto("gasto-1", { descricao: "Novo nome" }, "user-1")).rejects.toMatchObject({
+        statusCode: 403,
+      });
     });
   });
 
@@ -223,7 +244,7 @@ describe("GastoService", () => {
       });
 
       await expect(gastoService.deletarGasto("gasto-1", "user-1")).resolves.toEqual({
-        message: "Gasto marcado como excluÃƒÂ­do com sucesso.",
+        message: "Gasto marcado como excluido com sucesso.",
       });
 
       expect(gastoRepository.deletarGasto).toHaveBeenCalledWith("gasto-1");
@@ -232,10 +253,9 @@ describe("GastoService", () => {
     it("should throw 404 when gasto does not exist", async () => {
       (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue(null);
 
-      await expect(gastoService.deletarGasto("gasto-inexistente", "user-1")).rejects.toHaveProperty(
-        "message",
-        "Gasto nÃƒÂ£o encontrado.",
-      );
+      await expect(gastoService.deletarGasto("gasto-inexistente", "user-1")).rejects.toMatchObject({
+        statusCode: 404,
+      });
     });
 
     it("should throw 403 when gasto belongs to another user", async () => {
@@ -244,10 +264,9 @@ describe("GastoService", () => {
         responsavelId: "user-2",
       });
 
-      await expect(gastoService.deletarGasto("gasto-1", "user-1")).rejects.toHaveProperty(
-        "message",
-        "UsuÃƒÂ¡rio nÃƒÂ£o autorizado a excluir este gasto.",
-      );
+      await expect(gastoService.deletarGasto("gasto-1", "user-1")).rejects.toMatchObject({
+        statusCode: 403,
+      });
     });
   });
 });

@@ -1,5 +1,4 @@
 import { usuarioRepository } from "./usuarioRepository";
-import { PrismaClient } from "@prisma/client";
 
 jest.mock("@prisma/client", () => {
   const mockUsuario = {
@@ -57,7 +56,7 @@ describe("UsuarioRepository", () => {
         email: "joao@example.com",
         senha: "123456",
       }),
-    ).rejects.toHaveProperty("message", "Registro já existe.");
+    ).rejects.toHaveProperty("message", "Registro ja existe.");
   });
 
   it("should list users successfully", async () => {

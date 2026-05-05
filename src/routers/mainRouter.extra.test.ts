@@ -9,7 +9,7 @@ describe('mainRouter extra routes', () => {
 
   it('should delegate GET /categorias to categoriaController.buscarTodasCategorias', async () => {
     const buscarTodasCategorias = jest.fn(async (_req, res) => {
-      res.status(200).json([{ id: 'cat-1', descricao: 'Alimentacao' }]);
+      res.status(200).json({ data: [{ id: 'cat-1', descricao: 'Alimentacao' }], meta: { total: 1 } });
     });
 
     jest.doMock('./middlewares/loginMiddleware', () => ({
@@ -34,13 +34,13 @@ describe('mainRouter extra routes', () => {
     const response = await request(app).get('/categorias');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual([{ id: 'cat-1', descricao: 'Alimentacao' }]);
+    expect(response.body).toEqual({ data: [{ id: 'cat-1', descricao: 'Alimentacao' }], meta: { total: 1 } });
     expect(buscarTodasCategorias).toHaveBeenCalledTimes(1);
   });
 
-  it('should delegate POST /categoria to categoriaController.criarCategoria', async () => {
+  it('should delegate POST /categorias to categoriaController.criarCategoria', async () => {
     const criarCategoria = jest.fn(async (req, res) => {
-      res.status(201).json({ id: 'cat-1', descricao: req.body.descricao });
+      res.status(201).json({ data: { id: 'cat-1', descricao: req.body.descricao } });
     });
 
     jest.doMock('./middlewares/loginMiddleware', () => ({
@@ -62,16 +62,16 @@ describe('mainRouter extra routes', () => {
     app.use(express.json());
     app.use(router);
 
-    const response = await request(app).post('/categoria').send({ descricao: 'Moradia' });
+    const response = await request(app).post('/categorias').send({ descricao: 'Moradia' });
 
     expect(response.status).toBe(201);
-    expect(response.body).toEqual({ id: 'cat-1', descricao: 'Moradia' });
+    expect(response.body).toEqual({ data: { id: 'cat-1', descricao: 'Moradia' } });
     expect(criarCategoria).toHaveBeenCalledTimes(1);
   });
 
   it('should delegate POST /login to usuarioControler.login', async () => {
     const login = jest.fn(async (_req, res) => {
-      res.status(200).json({ auth: true, token: 'jwt-token' });
+      res.status(200).json({ data: { accessToken: 'jwt-token', tokenType: 'Bearer', expiresIn: 3600 } });
     });
 
     jest.doMock('./middlewares/usuarioMiddleware', () => ({
@@ -96,7 +96,7 @@ describe('mainRouter extra routes', () => {
     const response = await request(app).post('/login').send({ email: 'joao@example.com', senha: '123456' });
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ auth: true, token: 'jwt-token' });
+    expect(response.body).toEqual({ data: { accessToken: 'jwt-token', tokenType: 'Bearer', expiresIn: 3600 } });
     expect(login).toHaveBeenCalledTimes(1);
   });
 });

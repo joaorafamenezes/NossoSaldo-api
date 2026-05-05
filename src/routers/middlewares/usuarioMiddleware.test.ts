@@ -11,17 +11,17 @@ describe("validateCreateUser Middleware", () => {
   const createTestSchema = () =>
     Joi.object<iCriarUsuarioSchema>({
       nome: Joi.string().required().messages({
-        "string.empty": "O nome é obrigatório.",
-        "any.required": "O nome é obrigatório.",
+        "string.empty": "O nome e obrigatorio.",
+        "any.required": "O nome e obrigatorio.",
       }),
       email: Joi.string().email().required().messages({
-        "string.email": "O email é inválido.",
-        "any.required": "O email é obrigatório.",
+        "string.email": "O email e invalido.",
+        "any.required": "O email e obrigatorio.",
       }),
       senha: Joi.string().min(6).max(50).required().messages({
         "string.min": "A senha deve ter pelo menos 6 caracteres.",
-        "string.max": "A senha não pode ter mais de 50 caracteres.",
-        "any.required": "A senha é obrigatória.",
+        "string.max": "A senha nao pode ter mais de 50 caracteres.",
+        "any.required": "A senha e obrigatoria.",
       }),
     });
 
@@ -38,7 +38,7 @@ describe("validateCreateUser Middleware", () => {
     const middleware = validateCreateUser(createTestSchema());
 
     mockRequest.body = {
-      nome: "João Silva",
+      nome: "Joao Silva",
       email: "joao@example.com",
       senha: "senha123",
     };
@@ -52,7 +52,7 @@ describe("validateCreateUser Middleware", () => {
     const middleware = validateCreateUser(createTestSchema());
 
     mockRequest.body = {
-      nome: "João Silva",
+      nome: "Joao Silva",
       email: "joao@example.com",
       senha: "senha123",
       extra: "campo-extra",
@@ -61,13 +61,13 @@ describe("validateCreateUser Middleware", () => {
     middleware(mockRequest as Request, mockResponse as Response, mockNext);
 
     expect(mockRequest.body).toEqual({
-      nome: "João Silva",
+      nome: "Joao Silva",
       email: "joao@example.com",
       senha: "senha123",
     });
   });
 
-  it("should forward a 400 http error with validation details", () => {
+  it("should forward a 422 http error with validation details", () => {
     const middleware = validateCreateUser(createTestSchema());
 
     mockRequest.body = {
@@ -80,11 +80,11 @@ describe("validateCreateUser Middleware", () => {
 
     expect(mockNext).toHaveBeenCalledWith(
       expect.objectContaining({
-        statusCode: 400,
-        message: "Dados de entrada inválidos.",
+        statusCode: 422,
+        message: "Dados de entrada invalidos.",
         details: expect.arrayContaining([
-          "O nome é obrigatório.",
-          "O email é inválido.",
+          "O nome e obrigatorio.",
+          "O email e invalido.",
           "A senha deve ter pelo menos 6 caracteres.",
         ]),
       }),

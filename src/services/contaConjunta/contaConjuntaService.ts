@@ -4,36 +4,47 @@ import iCriarContaConjunta from "../../@types/contaConjunta/iCriarContaConjunta"
 import { contaConjuntaRepository } from "../../repositories/contaConjunta/contaConjuntaRepository";
 
 class ContaConjuntaService {
-  async criarContaConjunta(data: iCriarContaConjunta) {
+  async criarContaConjunta(data: iCriarContaConjunta, usuarioPayload: string) {
     const nomeConta = data.nomeConta;
-    const usuario1Id = data.usuario1Id;
-    const usuario2Id = data.usuario2Id;
+    const usuarioConjunto = data.usuarioConjunto;
+    const usuarioLogado = usuarioPayload;
+    const contasDoUsuarioLogado = await contaConjuntaRepository.listarContasConjuntasPorUsuarioId(usuarioLogado);
 
-    const usuario1 = await usuarioRepository.listarUsuarioPorId(usuario1Id);
-    const usuario2 = await usuarioRepository.listarUsuarioPorId(usuario2Id);
-
-    if (!usuario1 || !usuario2) {
-      throw createHttpError(404, "Um ou ambos os usuários não foram encontrados.");
+    if (contasDoUsuarioLogado.length > 0) {
+      throw createHttpError(409, "Usuario ja possui uma conta conjunta vinculada.");
     }
 
-    const contaConjuntaExistente = await contaConjuntaRepository.listarContaConjuntaPorIds(usuario1Id, usuario2Id);
+    const usuarioConjuntoValidado = usuarioConjunto.includes("@")
+      ? await usuarioRepository.buscarUsuarioPorEmail(usuarioConjunto)
+      : await usuarioRepository.listarUsuarioPorId(usuarioConjunto);
+    const usuarioLogadoValidado = await usuarioRepository.listarUsuarioPorId(usuarioLogado);
+
+    if (!usuarioConjuntoValidado || !usuarioLogadoValidado) {
+      throw createHttpError(404, "Um ou ambos os usuarios nao foram encontrados.");
+    }
+
+    if (usuarioConjuntoValidado.id === usuarioLogadoValidado.id) {
+      throw createHttpError(400, "Nao e possivel criar uma conta conjunta com o proprio usuario.");
+    }
+
+    const contaConjuntaExistente = await contaConjuntaRepository.listarContaConjuntaPorIds(usuarioConjuntoValidado.id, usuarioLogadoValidado.id);
 
     if (contaConjuntaExistente) {
-      throw createHttpError(409, "A conta conjunta já existe para esses usuários.");
+      throw createHttpError(409, "A conta conjunta ja existe para esses usuarios.");
     }
 
-    return await contaConjuntaRepository.criarContaConjunta({
+    return await contaConjuntaRepository.criarContaConjunta(
       nomeConta,
-      usuario1Id,
-      usuario2Id,
-    });
+      usuarioConjuntoValidado.id,
+      usuarioLogadoValidado.id,
+    );
   }
 
   async listarContasConjuntasPorUsuarioId(usuarioId: string) {
     const usuario = await usuarioRepository.listarUsuarioPorId(usuarioId);
 
     if (!usuario) {
-      throw createHttpError(404, "Usuário não encontrado.");
+      throw createHttpError(404, "Usuario nao encontrado.");
     }
 
     return await contaConjuntaRepository.listarContasConjuntasPorUsuarioId(usuarioId);

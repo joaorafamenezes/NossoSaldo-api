@@ -2,13 +2,14 @@ import { NextFunction, Request, Response } from "express";
 import { categoriaService } from '../../services/categoria/categoriaService';
 import iCriarCategoria from "../../@types/categoria/iCriarCategoria";
 import { StatusCodes } from 'http-status-codes';
+import { sendSuccess } from "../../http/response";
 
 class CategoriaController {
     async criarCategoria(req: Request, res: Response, next: NextFunction) {
         try {
             const data: iCriarCategoria = req.body;
             const categoriaCriada = await categoriaService.criarCategoria(data);
-            res.status(StatusCodes.CREATED).json(categoriaCriada);
+            return sendSuccess(res, StatusCodes.CREATED, categoriaCriada);
         } catch (error) {
             return next(error);
         }
@@ -17,7 +18,9 @@ class CategoriaController {
     async buscarTodasCategorias(req: Request, res: Response, next: NextFunction) {
         try {
             const categorias = await categoriaService.buscarTodasCategorias();
-            res.status(StatusCodes.OK).json(categorias);
+            return sendSuccess(res, StatusCodes.OK, categorias, {
+                total: categorias.length,
+            });
         } catch (error) {
             return next(error);
         }

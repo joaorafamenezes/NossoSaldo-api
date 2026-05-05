@@ -24,20 +24,22 @@ describe("app error middleware", () => {
     expect(response.status).toBe(400);
     expect(response.body).toEqual(
       expect.objectContaining({
-        status: "error",
-        message: "Falha controlada",
+        error: {
+          code: "BAD_REQUEST",
+          message: "Falha controlada",
+        },
       }),
     );
     expect(response.body.requestId).toEqual(expect.any(String));
   });
 
-  it("should return validation details for 400 errors", async () => {
+  it("should return validation details for 422 errors", async () => {
     jest.doMock("./routers/mainRouter", () => {
       const express = require("express");
       const router = express.Router();
 
       router.get("/validation", (_req: unknown, _res: unknown, next: (error: Error) => void) => {
-        next(createHttpError(400, "Dados de entrada inválidos.", { details: ["campo obrigatório"] }));
+        next(createHttpError(422, "Dados de entrada invalidos.", { code: "VALIDATION_ERROR", details: ["campo obrigatorio"] }));
       });
 
       return { router };
@@ -46,12 +48,14 @@ describe("app error middleware", () => {
     const { app } = await import("./app");
     const response = await request(app).get("/validation");
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(response.body).toEqual(
       expect.objectContaining({
-        status: "error",
-        message: "Dados de entrada inválidos.",
-        details: ["campo obrigatório"],
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Dados de entrada invalidos.",
+          details: ["campo obrigatorio"],
+        },
       }),
     );
   });
@@ -74,8 +78,10 @@ describe("app error middleware", () => {
     expect(response.status).toBe(500);
     expect(response.body).toEqual(
       expect.objectContaining({
-        status: "error",
-        message: "Erro interno no servidor.",
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Erro interno no servidor.",
+        },
       }),
     );
     expect(response.body.requestId).toEqual(expect.any(String));

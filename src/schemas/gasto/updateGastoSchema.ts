@@ -13,6 +13,14 @@ const updateGastoSchema = joi.object({
     origemLancamento: joi.string().valid("unico", "recorrente", "parcelado").messages({
         "any.only": "A origem do lancamento deve ser unico, recorrente ou parcelado.",
     }),
+    numeroParcelas: joi.number().integer().min(1).messages({
+        "number.base": "O numero de parcelas deve ser um numero.",
+        "number.integer": "O numero de parcelas deve ser inteiro.",
+        "number.min": "O numero de parcelas deve ser pelo menos 1.",
+    }),
+    naoCompartilhar: joi.boolean().messages({
+        "boolean.base": "O campo nao compartilhar deve ser verdadeiro ou falso.",
+    }),
     valor: joi.number().positive().messages({
         "number.base": "O valor deve ser um numero.",
     }),
@@ -31,9 +39,6 @@ const updateGastoSchema = joi.object({
     categoriaId: joi.string().uuid().messages({
         "string.base": "A categoria deve ser um texto.",
         "string.uuid": "A categoria deve ser um UUID valido.",
-    }),
-    contaConjuntaId: joi.string().uuid().allow(null).messages({
-        "string.uuid": "A conta conjunta deve ser um UUID valido.",
     }),
 })
     .min(1)

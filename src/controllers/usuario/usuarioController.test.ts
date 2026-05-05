@@ -67,7 +67,7 @@ describe("UsuarioController", () => {
     );
 
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.CREATED);
-    expect(mockResponse.json).toHaveBeenCalledWith(mockUsuarioCriado);
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: mockUsuarioCriado });
   });
 
   it("should call next with error when create service throws", async () => {
@@ -83,7 +83,7 @@ describe("UsuarioController", () => {
     expect(mockNext).toHaveBeenCalledWith(error);
   });
 
-  it("should return 200 with auth true and token when login succeeds", async () => {
+  it("should return 200 with access token metadata when login succeeds", async () => {
     mockRequest.body = mockLoginPayload;
     (usuarioService.login as jest.Mock).mockResolvedValue({ token: "jwt-token-valido" });
 
@@ -95,8 +95,11 @@ describe("UsuarioController", () => {
 
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
     expect(mockResponse.json).toHaveBeenCalledWith({
-      auth: true,
-      token: "jwt-token-valido",
+      data: {
+        accessToken: "jwt-token-valido",
+        tokenType: "Bearer",
+        expiresIn: 3600,
+      },
     });
   });
 
@@ -142,7 +145,10 @@ describe("UsuarioController", () => {
     );
 
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
-    expect(mockResponse.json).toHaveBeenCalledWith([mockUsuarioListagem]);
+    expect(mockResponse.json).toHaveBeenCalledWith({
+      data: [mockUsuarioListagem],
+      meta: { total: 1 },
+    });
   });
 
   it("should call next when users list service throws", async () => {
@@ -185,7 +191,7 @@ describe("UsuarioController", () => {
     );
 
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
-    expect(mockResponse.json).toHaveBeenCalledWith(mockUsuarioListagem);
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: mockUsuarioListagem });
   });
 
   it("should update user and return 200", async () => {
@@ -201,7 +207,7 @@ describe("UsuarioController", () => {
 
     expect(usuarioService.atualizaUsuario).toHaveBeenCalledWith("1", { nome: "Joao Atualizado" });
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
-    expect(mockResponse.json).toHaveBeenCalledWith(usuarioAtualizado);
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: usuarioAtualizado });
   });
 
   it("should forward 404 when updated user is not found", async () => {
@@ -248,7 +254,7 @@ describe("UsuarioController", () => {
 
     expect(usuarioService.atualizaSenhaUsuario).toHaveBeenCalledWith("1", "novaSenha123");
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
-    expect(mockResponse.json).toHaveBeenCalledWith({ message: "Senha atualizada com sucesso" });
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: { message: "Senha atualizada com sucesso" } });
   });
 
   it("should forward 404 when password update returns false", async () => {
@@ -283,7 +289,7 @@ describe("UsuarioController", () => {
     expect(mockNext).toHaveBeenCalledWith(error);
   });
 
-  it("should request password reset and return 200", async () => {
+  it("should request password reset and return 202", async () => {
     mockRequest.body = { email: "joao@example.com" };
     (usuarioService.solicitarRecuperacaoSenha as jest.Mock).mockResolvedValue({
       message: "Se o email informado existir, enviaremos um link para redefinicao de senha.",
@@ -295,9 +301,11 @@ describe("UsuarioController", () => {
       mockNext as NextFunction,
     );
 
-    expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
+    expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.ACCEPTED);
     expect(mockResponse.json).toHaveBeenCalledWith({
-      message: "Se o email informado existir, enviaremos um link para redefinicao de senha.",
+      data: {
+        message: "Se o email informado existir, enviaremos um link para redefinicao de senha.",
+      },
     });
   });
 
@@ -346,6 +354,6 @@ describe("UsuarioController", () => {
     );
 
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
-    expect(mockResponse.json).toHaveBeenCalledWith({ message: "Senha redefinida com sucesso" });
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: { message: "Senha redefinida com sucesso" } });
   });
 });

@@ -46,7 +46,7 @@ describe('CategoriaController', () => {
         descricao: 'Alimentacao'
       });
       expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.CREATED);
-      expect(mockResponse.json).toHaveBeenCalledWith(categoriaCriada);
+      expect(mockResponse.json).toHaveBeenCalledWith({ data: categoriaCriada });
       expect(mockNext).not.toHaveBeenCalled();
     });
 
@@ -83,7 +83,10 @@ describe('CategoriaController', () => {
 
       expect(categoriaService.buscarTodasCategorias).toHaveBeenCalledTimes(1);
       expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
-      expect(mockResponse.json).toHaveBeenCalledWith(categorias);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        data: categorias,
+        meta: { total: 2 }
+      });
       expect(mockNext).not.toHaveBeenCalled();
     });
 

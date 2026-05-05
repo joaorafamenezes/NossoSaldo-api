@@ -27,14 +27,24 @@ const createGastoSchema = joi.object({
         }),
         otherwise: joi.number().integer().min(1).optional(),
     }),
+    naoCompartilhar: joi.boolean().optional().messages({
+        'boolean.base': 'O campo nao compartilhar deve ser verdadeiro ou falso.',
+    }),
     valor: joi.number().positive().required().messages({
         'number.base': 'O valor deve ser um numero.',
     }),
     competencia: joi.date().optional().allow(null).messages({
         'date.base': 'A competencia deve ser uma data valida.',
     }),
-    dataVencimento: joi.date().optional().allow(null).messages({
-        'date.base': 'A data de vencimento deve ser uma data valida.',
+    dataVencimento: joi.when('origemLancamento', {
+        is: 'parcelado',
+        then: joi.date().required().messages({
+            'date.base': 'A data de vencimento deve ser uma data valida.',
+            'any.required': 'A data de vencimento e obrigatoria para um lancamento parcelado.',
+        }),
+        otherwise: joi.date().optional().allow(null).messages({
+            'date.base': 'A data de vencimento deve ser uma data valida.',
+        }),
     }),
     dataPagamento: joi.date().optional().allow(null).messages({
         'date.base': 'A data de pagamento deve ser uma data valida.',
@@ -46,9 +56,6 @@ const createGastoSchema = joi.object({
         'string.base': 'A categoria deve ser um texto.',
         'string.uuid': 'A categoria deve ser um UUID valido.',
         'any.required': 'A categoria e obrigatoria.',
-    }),
-    contaConjuntaId: joi.string().uuid().optional().allow(null).messages({
-        'string.uuid': 'A conta conjunta deve ser um UUID valido.',
     }),
 });
 

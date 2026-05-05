@@ -5,14 +5,10 @@ const createContaConjuntaSchema = joi.object({
         'string.empty': 'O nome da conta é obrigatório.',
         'any.required': 'O nome da conta é obrigatório.',
     }),
-    usuario1Id: joi.string().uuid().required().messages({
-        'string.uuid': 'O ID do primeiro usuário é inválido.',
-        'any.required': 'O ID do primeiro usuário é obrigatório.',
+    usuarioConjunto: joi.string().required().messages({
+        'string.empty': 'O ID do usuário conjunto é obrigatório.',
+        'any.required': 'O ID do usuário conjunto é obrigatório.',
     }),
-    usuario2Id: joi.string().uuid().required().messages({
-        'string.uuid': 'O ID do segundo usuário é inválido.',
-        'any.required': 'O ID do segundo usuário é obrigatório.',
-    }), 
 });
 
 export { createContaConjuntaSchema };

@@ -32,7 +32,7 @@ describe("ContaConjuntaRepository", () => {
     };
     mockPrisma.contaConjunta.create.mockResolvedValue({ id: "conta-1", ...payload });
 
-    await expect(contaConjuntaRepository.criarContaConjunta(payload)).resolves.toEqual({
+    await expect(contaConjuntaRepository.criarContaConjunta(payload.nomeConta, payload.usuario1Id, payload.usuario2Id)).resolves.toEqual({
       id: "conta-1",
       ...payload,
     });
@@ -42,11 +42,7 @@ describe("ContaConjuntaRepository", () => {
     mockPrisma.contaConjunta.create.mockRejectedValue(new Error("Database unavailable"));
 
     await expect(
-      contaConjuntaRepository.criarContaConjunta({
-        nomeConta: "Casa",
-        usuario1Id: "user-1",
-        usuario2Id: "user-2",
-      }),
+      contaConjuntaRepository.criarContaConjunta("Casa", "user-1", "user-2"),
     ).rejects.toHaveProperty("message", "Não foi possível criar a conta conjunta.");
   });
 

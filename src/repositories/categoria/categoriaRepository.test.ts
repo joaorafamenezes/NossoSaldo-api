@@ -1,21 +1,22 @@
-import { categoriaRepository } from "./categoriaRepository";
+export {};
 
-jest.mock("@prisma/client", () => ({
-  PrismaClient: jest.fn(() => ({
+let mockPrisma: any;
+
+jest.mock("@prisma/client", () => {
+  mockPrisma = {
     $executeRaw: jest.fn(),
     $queryRaw: jest.fn(),
-  })),
-}));
-
-describe("CategoriaRepository", () => {
-  let mockPrisma: {
-    $executeRaw: jest.Mock;
-    $queryRaw: jest.Mock;
   };
 
+  return {
+    PrismaClient: jest.fn(() => mockPrisma),
+  };
+});
+
+const { categoriaRepository } = require("./categoriaRepository");
+
+describe("CategoriaRepository", () => {
   beforeEach(() => {
-    const { PrismaClient } = require("@prisma/client");
-    mockPrisma = new PrismaClient();
     jest.clearAllMocks();
   });
 

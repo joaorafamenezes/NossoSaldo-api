@@ -1,7 +1,8 @@
 import createHttpError from "http-errors";
 
 export function createValidationError(details: string[]) {
-  return createHttpError(400, "Dados de entrada inválidos.", {
+  return createHttpError(422, "Dados de entrada invalidos.", {
+    code: "VALIDATION_ERROR",
     details,
   });
 }
@@ -13,12 +14,14 @@ export function createRepositoryError(error: unknown, fallbackMessage: string) {
     "code" in error &&
     error.code === "P2002"
   ) {
-    return createHttpError(409, "Registro já existe.", {
+    return createHttpError(409, "Registro ja existe.", {
+      code: "CONFLICT",
       cause: error,
     });
   }
 
   return createHttpError(500, fallbackMessage, {
+    code: "INTERNAL_SERVER_ERROR",
     cause: error,
   });
 }

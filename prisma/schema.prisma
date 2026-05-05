@@ -45,7 +45,6 @@ model ContaConjunta {
   usuario2Id String
   usuario1   Usuario  @relation("Usuario1", fields: [usuario1Id], references: [id], onDelete: Cascade)
   usuario2   Usuario  @relation("Usuario2", fields: [usuario2Id], references: [id], onDelete: Cascade)
-  gastos     Gasto[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -70,6 +69,7 @@ model Gasto {
   status          StatusGasto
   origemLancamento OrigemLancamento
   numeroParcelas  Int           @default(1)
+  naoCompartilhar Boolean       @default(false)
   valor           Decimal       @db.Decimal(10, 2)
   competencia     DateTime?
   dataVencimento  DateTime?
@@ -79,8 +79,6 @@ model Gasto {
   categoria       Categoria     @relation(fields: [categoriaId], references: [id])
   responsavelId   String
   responsavel     Usuario       @relation("Responsavel", fields: [responsavelId], references: [id])
-  contaConjuntaId String?
-  contaConjunta   ContaConjunta? @relation(fields: [contaConjuntaId], references: [id])
   lancamentosBase LancamentoBase[]
   deletedAt       DateTime?
   createdAt       DateTime      @default(now())
@@ -88,7 +86,6 @@ model Gasto {
 
   @@index([categoriaId])
   @@index([responsavelId])
-  @@index([contaConjuntaId])
 }
 
 model LancamentoBase {

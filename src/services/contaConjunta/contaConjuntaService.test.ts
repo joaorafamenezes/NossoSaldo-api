@@ -12,82 +12,101 @@ describe("ContaConjuntaService", () => {
 
   it("should create a conta conjunta when both users exist", async () => {
     const payload = {
-      nomeConta: "JoÃ£o e NÃ­colas",
-      usuario1Id: "a58c7718-c69c-4400-9bf7-9486cea765bc",
-      usuario2Id: "cba7f879-75e9-4595-af5d-17dac751596a",
+      nomeConta: "Casa",
+      usuarioConjunto: "user-2",
+    };
+    const usuarioLogado = "user-1";
+    const response = {
+      id: "conta-1",
+      nomeConta: payload.nomeConta,
+      usuario1Id: payload.usuarioConjunto,
+      usuario2Id: usuarioLogado,
     };
 
     (usuarioRepository.listarUsuarioPorId as jest.Mock)
-      .mockResolvedValueOnce({ id: payload.usuario1Id })
-      .mockResolvedValueOnce({ id: payload.usuario2Id });
+      .mockResolvedValueOnce({ id: payload.usuarioConjunto })
+      .mockResolvedValueOnce({ id: usuarioLogado });
+    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([]);
     (contaConjuntaRepository.listarContaConjuntaPorIds as jest.Mock).mockResolvedValue(null);
-    (contaConjuntaRepository.criarContaConjunta as jest.Mock).mockResolvedValue({
-      id: "uuid-da-conta",
-      ...payload,
-    });
+    (contaConjuntaRepository.criarContaConjunta as jest.Mock).mockResolvedValue(response);
 
-    await expect(contaConjuntaService.criarContaConjunta(payload)).resolves.toEqual({
-      id: "uuid-da-conta",
-      ...payload,
-    });
+    await expect(contaConjuntaService.criarContaConjunta(payload, usuarioLogado)).resolves.toEqual(response);
+    expect(contaConjuntaRepository.criarContaConjunta).toHaveBeenCalledWith(
+      payload.nomeConta,
+      payload.usuarioConjunto,
+      usuarioLogado,
+    );
   });
 
   it("should throw 404 when one of the users does not exist", async () => {
     const payload = {
-      nomeConta: "JoÃ£o e NÃ­colas",
-      usuario1Id: "a58c7718-c69c-4400-9bf7-9486cea765bc",
-      usuario2Id: "cba7f879-75e9-4595-af5d-17dac751596a",
+      nomeConta: "Casa",
+      usuarioConjunto: "user-2",
     };
 
     (usuarioRepository.listarUsuarioPorId as jest.Mock)
-      .mockResolvedValueOnce({ id: payload.usuario1Id })
+      .mockResolvedValueOnce({ id: payload.usuarioConjunto })
       .mockResolvedValueOnce(null);
+    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([]);
 
-    await expect(contaConjuntaService.criarContaConjunta(payload)).rejects.toHaveProperty(
-      "message",
-      "Um ou ambos os usuários não foram encontrados.",
-    );
+    await expect(contaConjuntaService.criarContaConjunta(payload, "user-1")).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 
   it("should throw 409 when conta conjunta already exists for the pair", async () => {
     const payload = {
-      nomeConta: "JoÃ£o e NÃ­colas",
-      usuario1Id: "a58c7718-c69c-4400-9bf7-9486cea765bc",
-      usuario2Id: "cba7f879-75e9-4595-af5d-17dac751596a",
+      nomeConta: "Casa",
+      usuarioConjunto: "user-2",
     };
 
     (usuarioRepository.listarUsuarioPorId as jest.Mock)
-      .mockResolvedValueOnce({ id: payload.usuario1Id })
-      .mockResolvedValueOnce({ id: payload.usuario2Id });
+      .mockResolvedValueOnce({ id: payload.usuarioConjunto })
+      .mockResolvedValueOnce({ id: "user-1" });
+    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([]);
     (contaConjuntaRepository.listarContaConjuntaPorIds as jest.Mock).mockResolvedValue({
       id: "conta-existente",
     });
 
-    await expect(contaConjuntaService.criarContaConjunta(payload)).rejects.toHaveProperty(
-      "message",
-      "A conta conjunta já existe para esses usuários.",
-    );
+    await expect(contaConjuntaService.criarContaConjunta(payload, "user-1")).rejects.toMatchObject({
+      statusCode: 409,
+    });
   });
 
   it("should preserve repository errors such as duplicate account conflicts", async () => {
     const payload = {
-      nomeConta: "JoÃ£o e NÃ­colas",
-      usuario1Id: "a58c7718-c69c-4400-9bf7-9486cea765bc",
-      usuario2Id: "cba7f879-75e9-4595-af5d-17dac751596a",
+      nomeConta: "Casa",
+      usuarioConjunto: "user-2",
     };
 
     (usuarioRepository.listarUsuarioPorId as jest.Mock)
-      .mockResolvedValueOnce({ id: payload.usuario1Id })
-      .mockResolvedValueOnce({ id: payload.usuario2Id });
+      .mockResolvedValueOnce({ id: payload.usuarioConjunto })
+      .mockResolvedValueOnce({ id: "user-1" });
+    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([]);
     (contaConjuntaRepository.listarContaConjuntaPorIds as jest.Mock).mockResolvedValue(null);
     (contaConjuntaRepository.criarContaConjunta as jest.Mock).mockRejectedValue({
       statusCode: 409,
-      message: "Registro jÃ¡ existe.",
+      message: "Registro ja existe.",
     });
 
-    await expect(contaConjuntaService.criarContaConjunta(payload)).rejects.toMatchObject({
+    await expect(contaConjuntaService.criarContaConjunta(payload, "user-1")).rejects.toMatchObject({
       statusCode: 409,
-      message: "Registro jÃ¡ existe.",
+      message: "Registro ja existe.",
+    });
+  });
+
+  it("should throw 409 when logged user already has a conta conjunta", async () => {
+    const payload = {
+      nomeConta: "Casa",
+      usuarioConjunto: "user-2",
+    };
+
+    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([
+      { id: "conta-existente" },
+    ]);
+
+    await expect(contaConjuntaService.criarContaConjunta(payload, "user-1")).rejects.toMatchObject({
+      statusCode: 409,
     });
   });
 
@@ -103,9 +122,8 @@ describe("ContaConjuntaService", () => {
   it("should throw 404 when listing contas conjuntas for a non-existing user", async () => {
     (usuarioRepository.listarUsuarioPorId as jest.Mock).mockResolvedValue(null);
 
-    await expect(contaConjuntaService.listarContasConjuntasPorUsuarioId("user-1")).rejects.toHaveProperty(
-      "message",
-      "Usuário não encontrado.",
-    );
+    await expect(contaConjuntaService.listarContasConjuntasPorUsuarioId("user-1")).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 });

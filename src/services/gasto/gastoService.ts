@@ -2,6 +2,7 @@ import createHttpError from "http-errors";
 import iAtualizarGasto from "../../@types/gasto/iAtualizarGasto";
 import iCriarGasto from "../../@types/gasto/iCriarGasto";
 import iPagarGasto from "../../@types/gasto/iPagarGasto";
+import { contaConjuntaRepository } from "../../repositories/contaConjunta/contaConjuntaRepository";
 import { gastoRepository } from "../../repositories/gasto/gastoRepository";
 import { usuarioRepository } from "../../repositories/usuario/usuarioRepository";
 
@@ -11,7 +12,7 @@ class GastoService {
         const usuario = await usuarioRepository.listarUsuarioPorId(responsavelId);
 
         if (!usuario) {
-            throw createHttpError(404, "UsuÃƒÆ’Ã‚Â¡rio responsÃƒÆ’Ã‚Â¡vel pelo gasto nÃƒÆ’Ã‚Â£o encontrado.");
+            throw createHttpError(404, "Usuario responsavel pelo gasto nao encontrado.");
         }
 
         return await gastoRepository.criarGastoUsuarioLogado(data);
@@ -21,7 +22,7 @@ class GastoService {
         const usuario = await usuarioRepository.listarUsuarioPorId(responsavelId);
 
         if (!usuario) {
-            throw createHttpError(404, "UsuÃƒÆ’Ã‚Â¡rio nÃƒÆ’Ã‚Â£o encontrado.");
+            throw createHttpError(404, "Usuario nao encontrado.");
         }
 
         return await gastoRepository.listarGastosPorResponsavelId(responsavelId);
@@ -31,7 +32,7 @@ class GastoService {
         const usuario = await usuarioRepository.listarUsuarioPorId(responsavelId);
 
         if (!usuario) {
-            throw createHttpError(404, "UsuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado.");
+            throw createHttpError(404, "Usuario nao encontrado.");
         }
 
         const agora = new Date();
@@ -53,11 +54,19 @@ class GastoService {
         const gasto = await gastoRepository.buscarGastoPorId(id);
 
         if (!gasto) {
-            throw createHttpError(404, "Gasto nÃƒÆ’Ã‚Â£o encontrado.");
+            throw createHttpError(404, "Gasto nao encontrado.");
         }
 
-        if (gasto.responsavelId !== userId) {
-            throw createHttpError(403, "UsuÃƒÆ’Ã‚Â¡rio nÃƒÆ’Ã‚Â£o autorizado a acessar este gasto.");
+        const gastoCompartilhavel = gasto.responsavelId !== userId && !(gasto as any).naoCompartilhar;
+        const contasConjuntas = gastoCompartilhavel
+            ? await contaConjuntaRepository.listarContasConjuntasPorUsuarioId(userId)
+            : [];
+        const usuarioCompartilhaComResponsavel = contasConjuntas.some((conta) => (
+            conta.usuario1Id === gasto.responsavelId || conta.usuario2Id === gasto.responsavelId
+        ));
+
+        if (gasto.responsavelId !== userId && !usuarioCompartilhaComResponsavel) {
+            throw createHttpError(403, "Usuario nao autorizado a acessar este gasto.");
         }
 
         return gasto;
@@ -67,11 +76,11 @@ class GastoService {
         const gasto = await gastoRepository.buscarGastoPorId(id);
 
         if (!gasto) {
-            throw createHttpError(404, "Gasto nÃ£o encontrado.");
+            throw createHttpError(404, "Gasto nao encontrado.");
         }
 
         if (gasto.responsavelId !== userId) {
-            throw createHttpError(403, "UsuÃ¡rio nÃ£o autorizado a atualizar este gasto.");
+            throw createHttpError(403, "Usuario nao autorizado a atualizar este gasto.");
         }
 
         return await gastoRepository.atualizarGasto(id, data);
@@ -81,34 +90,64 @@ class GastoService {
         const gasto = await gastoRepository.buscarGastoPorId(id);
 
         if (!gasto) {
-            throw createHttpError(404, "Gasto nÃƒÂ£o encontrado.");
+            throw createHttpError(404, "Gasto nao encontrado.");
         }
 
         if (gasto.status === "pago") {
-            throw createHttpError(400, "Gasto jÃƒÂ¡ estÃƒÂ¡ pago.");
+            throw createHttpError(400, "Gasto ja esta pago.");
         }
 
         if (gasto.responsavelId !== userId) {
-            throw createHttpError(403, "UsuÃƒÂ¡rio nÃƒÂ£o autorizado a pagar este gasto.");
+            throw createHttpError(403, "Usuario nao autorizado a pagar este gasto.");
+        }
+
+        if (gasto.origemLancamento === "parcelado") {
+            const lancamentosBase = Array.isArray((gasto as any).lancamentosBase)
+                ? (gasto as any).lancamentosBase
+                : [];
+            const todasParcelasPagas = lancamentosBase.length > 0
+                && lancamentosBase.every((parcela: { status: string }) => parcela.status === "pago");
+
+            if (!todasParcelasPagas) {
+                throw createHttpError(400, "Gasto parcelado so pode ser quitado quando todas as parcelas estiverem pagas.");
+            }
         }
 
         return await gastoRepository.pagarGasto(id, data.dataPagamento ?? new Date());
+    }
+
+    async pagarParcela(id: string, data: iPagarGasto, userId: string) {
+        const parcela = await gastoRepository.buscarLancamentoBasePorId(id);
+
+        if (!parcela) {
+            throw createHttpError(404, "Parcela nao encontrada.");
+        }
+
+        if (parcela.status === "pago") {
+            throw createHttpError(400, "Parcela ja esta paga.");
+        }
+
+        if (parcela.responsavelId !== userId) {
+            throw createHttpError(403, "Usuario nao autorizado a pagar esta parcela.");
+        }
+
+        return await gastoRepository.pagarLancamentoBase(id, data.dataPagamento ?? new Date());
     }
 
     async deletarGasto(id: string, userId: string) {
         const gasto = await gastoRepository.buscarGastoPorId(id);
 
         if (!gasto) {
-            throw createHttpError(404, "Gasto nÃƒÂ£o encontrado.");
+            throw createHttpError(404, "Gasto nao encontrado.");
         }
 
         if (gasto.responsavelId !== userId) {
-            throw createHttpError(403, "UsuÃƒÂ¡rio nÃƒÂ£o autorizado a excluir este gasto.");
+            throw createHttpError(403, "Usuario nao autorizado a excluir este gasto.");
         }
 
         await gastoRepository.deletarGasto(id);
 
-        return { message: "Gasto marcado como excluÃƒÂ­do com sucesso." };
+        return { message: "Gasto marcado como excluido com sucesso." };
     }
 }
 

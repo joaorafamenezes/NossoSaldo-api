@@ -43,7 +43,7 @@ describe("GastoController", () => {
 
     expect(gastoService.buscarTotalGastoMesAtualPorResponsavelId).toHaveBeenCalledWith("user-1");
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
-    expect(mockResponse.json).toHaveBeenCalledWith(total);
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: total });
   });
 
   it("should return logged user gastos list", async () => {
@@ -59,8 +59,8 @@ describe("GastoController", () => {
     expect(gastoService.listarGastosPorResponsavelId).toHaveBeenCalledWith("user-1");
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
     expect(mockResponse.json).toHaveBeenCalledWith({
-      gastos,
-      totalRegistros: 2,
+      data: gastos,
+      meta: { total: 2 },
     });
   });
 
@@ -76,7 +76,7 @@ describe("GastoController", () => {
 
     expect(gastoService.detalharGastoPorId).toHaveBeenCalledWith("gasto-1", "user-1");
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
-    expect(mockResponse.json).toHaveBeenCalledWith(gasto);
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: gasto });
   });
 
   it("should create gasto for logged user and return 201", async () => {
@@ -95,7 +95,7 @@ describe("GastoController", () => {
       responsavelId: "user-1",
     });
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.CREATED);
-    expect(mockResponse.json).toHaveBeenCalledWith(gastoCriado);
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: gastoCriado });
   });
 
   it("should update gasto and return 200", async () => {
@@ -110,7 +110,7 @@ describe("GastoController", () => {
 
     expect(gastoService.atualizarGasto).toHaveBeenCalledWith("gasto-1", mockRequest.body, "user-1");
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
-    expect(mockResponse.json).toHaveBeenCalledWith(gastoAtualizado);
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: gastoAtualizado });
   });
 
   it("should pay gasto and return 200", async () => {
@@ -126,7 +126,7 @@ describe("GastoController", () => {
 
     expect(gastoService.pagarGasto).toHaveBeenCalledWith("gasto-1", mockRequest.body, "user-1");
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
-    expect(mockResponse.json).toHaveBeenCalledWith(gastoPago);
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: gastoPago });
   });
 
   it("should delete gasto and return 200", async () => {
@@ -141,7 +141,7 @@ describe("GastoController", () => {
 
     expect(gastoService.deletarGasto).toHaveBeenCalledWith("gasto-1", "user-1");
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
-    expect(mockResponse.json).toHaveBeenCalledWith(resultado);
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: resultado });
   });
 
   it("should call next when service throws during update", async () => {

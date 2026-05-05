@@ -9,13 +9,14 @@ import iAtualizaUsuarioSchema from "../../@types/usuario/iAtualizaUsuario";
 import iRedefinirSenhaComToken from "../../@types/usuario/iRedefinirSenhaComToken";
 import iSolicitarResetSenha from "../../@types/usuario/iSolicitarResetSenha";
 import authorization from "../../secure/authorization";
+import { sendSuccess } from "../../http/response";
 
 class UsuarioController {
   async criarUsuario(req: Request, res: Response, next: NextFunction) {
     try {
       const data: iCriarUsuarioSchema = req.body;
       const usuarioCriado = await usuarioService.criarUsuario(data);
-      return res.status(StatusCodes.CREATED).json(usuarioCriado);
+      return sendSuccess(res, StatusCodes.CREATED, usuarioCriado);
     } catch (error) {
       return next(error);
     }
@@ -36,9 +37,10 @@ class UsuarioController {
           },
           "JWT issued during login",
         );
-        return res.status(StatusCodes.OK).json({
-          auth: true,
-          ...usuarioLogado,
+        return sendSuccess(res, StatusCodes.OK, {
+          accessToken: usuarioLogado.token,
+          tokenType: "Bearer",
+          expiresIn: Number(process.env.JWT_EXPIRES ?? "3600"),
         });
       }
 
@@ -51,7 +53,9 @@ class UsuarioController {
   async listarUsuarios(req: Request, res: Response, next: NextFunction) {
     try {
       const usuarios = await usuarioService.listarUsuarios();
-      return res.status(StatusCodes.OK).json(usuarios);
+      return sendSuccess(res, StatusCodes.OK, usuarios, {
+        total: usuarios.length,
+      });
     } catch (error) {
       return next(error);
     }
@@ -66,7 +70,7 @@ class UsuarioController {
         return next(createHttpError(404, "Usuário não encontrado"));
       }
 
-      return res.status(StatusCodes.OK).json(usuario);
+      return sendSuccess(res, StatusCodes.OK, usuario);
     } catch (error) {
       return next(error);
     }
@@ -82,7 +86,7 @@ class UsuarioController {
         return next(createHttpError(404, "Usuário não encontrado"));
       }
 
-      return res.status(StatusCodes.OK).json(usuarioAtualizado);
+      return sendSuccess(res, StatusCodes.OK, usuarioAtualizado);
     } catch (error) {
       return next(error);
     }
@@ -98,7 +102,7 @@ class UsuarioController {
         return next(createHttpError(404, "Usuário não encontrado"));
       }
 
-      return res.status(StatusCodes.OK).json({ message: "Senha atualizada com sucesso" });
+      return sendSuccess(res, StatusCodes.OK, { message: "Senha atualizada com sucesso" });
     } catch (error) {
       return next(error);
     }
@@ -108,7 +112,7 @@ class UsuarioController {
     try {
       const data: iSolicitarResetSenha = req.body;
       const resultado = await usuarioService.solicitarRecuperacaoSenha(data);
-      return res.status(StatusCodes.OK).json(resultado);
+      return sendSuccess(res, StatusCodes.ACCEPTED, resultado);
     } catch (error) {
       return next(error);
     }
@@ -143,7 +147,7 @@ class UsuarioController {
     try {
       const data: iRedefinirSenhaComToken = req.body;
       await usuarioService.redefinirSenhaComToken(data);
-      return res.status(StatusCodes.OK).json({ message: "Senha redefinida com sucesso" });
+      return sendSuccess(res, StatusCodes.OK, { message: "Senha redefinida com sucesso" });
     } catch (error) {
       return next(error);
     }
