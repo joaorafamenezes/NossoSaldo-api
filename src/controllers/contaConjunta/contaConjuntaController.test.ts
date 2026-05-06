@@ -94,4 +94,29 @@ describe("ContaConjuntaController", () => {
 
     expect(mockNext).toHaveBeenCalledWith(error);
   });
+
+  it("should desvincular conta conjunta and return deletedAt", async () => {
+    const deletedAt = new Date("2026-05-05T12:00:00.000Z");
+    (contaConjuntaService.desvincularContaConjunta as jest.Mock).mockResolvedValue({
+      message: "Conta conjunta desvinculada com sucesso.",
+      deletedAt,
+    });
+
+    mockRequest.params = { id: "conta-1" };
+
+    await contaConjuntaController.desvincularContaConjunta(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext,
+    );
+
+    expect(contaConjuntaService.desvincularContaConjunta).toHaveBeenCalledWith("conta-1", "user-1");
+    expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
+    expect(mockResponse.json).toHaveBeenCalledWith({
+      data: {
+        message: "Conta conjunta desvinculada com sucesso.",
+        deletedAt,
+      },
+    });
+  });
 });

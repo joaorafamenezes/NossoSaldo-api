@@ -25,7 +25,8 @@ describe("OpenAPI docs", () => {
     expect(response.body.paths).toHaveProperty("/usuarios/atualizaSenha");
     expect(response.body.paths).toHaveProperty("/categorias");
     expect(response.body.paths).toHaveProperty("/criarContaConjunta");
-    expect(response.body.paths).toHaveProperty("/conta-conjunta");
+    expect(response.body.paths).toHaveProperty("/contaConjunta");
+    expect(response.body.paths).toHaveProperty("/contaConjunta/{id}");
     expect(response.body.paths).toHaveProperty("/gastos/total/mes-atual");
     expect(response.body.paths).toHaveProperty("/gastos/{id}");
     expect(response.body.paths["/gastos/{id}"]).toHaveProperty("patch");

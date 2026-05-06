@@ -29,6 +29,17 @@ class ContaConjuntaController {
       return next(error);
     }
   }
+
+  async desvincularContaConjunta(req: Request, res: Response, next: NextFunction) {
+    try {
+        const payload = res.locals.payload as Token;
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const resultado = await contaConjuntaService.desvincularContaConjunta(id, payload.id);
+        return sendSuccess(res, StatusCodes.OK, resultado);
+    } catch (error) {
+      return next(error);
+    }
+  }
 }
 
 export const contaConjuntaController = new ContaConjuntaController();

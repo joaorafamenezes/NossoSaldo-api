@@ -37,6 +37,7 @@ class UsuarioRepository {
           id: true,
           nome: true,
           email: true,
+          emailVerifiedAt: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -54,6 +55,7 @@ class UsuarioRepository {
           id: true,
           nome: true,
           email: true,
+          emailVerifiedAt: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -72,6 +74,7 @@ class UsuarioRepository {
           id: true,
           nome: true,
           email: true,
+          emailVerifiedAt: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -113,6 +116,27 @@ class UsuarioRepository {
       return usuario.senha;
     } catch (error) {
       throw createRepositoryError(error, "Não foi possível buscar a senha do usuário.");
+    }
+  }
+
+  async marcarEmailComoVerificado(id: string) {
+    try {
+      const emailVerifiedAt = new Date();
+
+      return await prisma.usuario.update({
+        where: { id },
+        data: { emailVerifiedAt },
+        select: {
+          id: true,
+          nome: true,
+          email: true,
+          emailVerifiedAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+    } catch (error) {
+      throw createRepositoryError(error, "Nao foi possivel marcar o email como verificado.");
     }
   }
 }

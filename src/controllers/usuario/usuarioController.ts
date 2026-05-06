@@ -8,6 +8,7 @@ import { Token } from "../../secure/authorization";
 import iAtualizaUsuarioSchema from "../../@types/usuario/iAtualizaUsuario";
 import iRedefinirSenhaComToken from "../../@types/usuario/iRedefinirSenhaComToken";
 import iSolicitarResetSenha from "../../@types/usuario/iSolicitarResetSenha";
+import iValidarEmail from "../../@types/usuario/iValidarEmail";
 import authorization from "../../secure/authorization";
 import { sendSuccess } from "../../http/response";
 
@@ -148,6 +149,16 @@ class UsuarioController {
       const data: iRedefinirSenhaComToken = req.body;
       await usuarioService.redefinirSenhaComToken(data);
       return sendSuccess(res, StatusCodes.OK, { message: "Senha redefinida com sucesso" });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async validarEmail(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data: iValidarEmail = req.body;
+      const resultado = await usuarioService.validarEmail(data.token);
+      return sendSuccess(res, StatusCodes.OK, resultado);
     } catch (error) {
       return next(error);
     }

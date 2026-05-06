@@ -1,6 +1,7 @@
 import { usuarioService } from "./usuarioService";
 import { usuarioRepository } from "../../repositories/usuario/usuarioRepository";
 import { passwordResetTokenRepository } from "../../repositories/usuario/passwordResetTokenRepository";
+import { emailVerificationTokenRepository } from "../../repositories/usuario/emailVerificationTokenRepository";
 import iCriarUsuarioSchema from "../../@types/usuario/iCriarUsuario";
 import iLogin from "../../@types/iLogin";
 import { mailer } from "../../lib/mailer";
@@ -9,6 +10,7 @@ import authorization from "../../secure/authorization";
 
 jest.mock("../../repositories/usuario/usuarioRepository");
 jest.mock("../../repositories/usuario/passwordResetTokenRepository");
+jest.mock("../../repositories/usuario/emailVerificationTokenRepository");
 jest.mock("../../lib/mailer");
 jest.mock("../../secure/autentication");
 jest.mock("../../secure/authorization");
@@ -25,6 +27,7 @@ describe("UsuarioService", () => {
     nome: "Joao Silva",
     email: "joao@example.com",
     senha: "senha-criptografada",
+    emailVerifiedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -33,6 +36,7 @@ describe("UsuarioService", () => {
     id: "1",
     nome: "Joao Silva",
     email: "joao@example.com",
+    emailVerifiedAt: new Date(),
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -46,6 +50,9 @@ describe("UsuarioService", () => {
   it("should create a user successfully when email does not exist", async () => {
     (usuarioRepository.buscarUsuarioPorEmail as jest.Mock).mockResolvedValue(null);
     (usuarioRepository.criarUsuario as jest.Mock).mockResolvedValue(mockUsuarioCriado);
+    (emailVerificationTokenRepository.invalidarTokensAtivosPorUsuarioId as jest.Mock).mockResolvedValue({ count: 0 });
+    (emailVerificationTokenRepository.criarToken as jest.Mock).mockResolvedValue({ id: "email-token-1" });
+    (mailer.sendEmailVerificationEmail as jest.Mock).mockResolvedValue(undefined);
 
     const result = await usuarioService.criarUsuario(mockUsuarioData);
 
@@ -55,6 +62,14 @@ describe("UsuarioService", () => {
       senha: "senha-criptografada",
     });
     expect(result).toEqual(mockUsuarioCriado);
+    expect(emailVerificationTokenRepository.invalidarTokensAtivosPorUsuarioId).toHaveBeenCalledWith("1");
+    expect(emailVerificationTokenRepository.criarToken).toHaveBeenCalledTimes(1);
+    expect(mailer.sendEmailVerificationEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "joao@example.com",
+        verificationUrl: expect.stringMatching(/^http:\/\/localhost:5173\/validar-email\?token=/),
+      }),
+    );
   });
 
   it("should throw 409 when email already exists", async () => {
@@ -84,6 +99,7 @@ describe("UsuarioService", () => {
     (usuarioRepository.buscarUsuarioPorEmail as jest.Mock).mockResolvedValue({
       id: "user-1",
       senha: "hash-da-senha",
+      emailVerifiedAt: new Date(),
     });
 
     await expect(usuarioService.login(loginData)).resolves.toBeNull();
@@ -97,6 +113,7 @@ describe("UsuarioService", () => {
     (usuarioRepository.buscarUsuarioPorEmail as jest.Mock).mockResolvedValue({
       id: "user-1",
       senha: "hash-da-senha",
+      emailVerifiedAt: new Date(),
     });
     (autentication.checkPassword as jest.Mock).mockReturnValue(true);
     (authorization.sign as jest.Mock).mockResolvedValue("jwt-token-valido");
@@ -112,6 +129,7 @@ describe("UsuarioService", () => {
     (usuarioRepository.buscarUsuarioPorEmail as jest.Mock).mockResolvedValue({
       id: "user-1",
       senha: "hash-da-senha",
+      emailVerifiedAt: new Date(),
     });
     (autentication.checkPassword as jest.Mock).mockReturnValue(true);
     (authorization.sign as jest.Mock).mockResolvedValue(null);
@@ -119,6 +137,23 @@ describe("UsuarioService", () => {
     await expect(usuarioService.login(loginData)).rejects.toHaveProperty(
       "message",
       "NÃ£o foi possÃ­vel gerar o token.",
+    );
+  });
+
+  it("should throw 403 when email is not verified", async () => {
+    const loginData: iLogin = {
+      email: "joao@example.com",
+      senha: "senha123",
+    };
+    (usuarioRepository.buscarUsuarioPorEmail as jest.Mock).mockResolvedValue({
+      id: "user-1",
+      senha: "hash-da-senha",
+      emailVerifiedAt: null,
+    });
+
+    await expect(usuarioService.login(loginData)).rejects.toHaveProperty(
+      "message",
+      "Confirme seu email antes de acessar sua conta.",
     );
   });
 

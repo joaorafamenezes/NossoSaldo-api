@@ -171,6 +171,7 @@ export const openApiSpec = {
           nomeConta: { type: "string", example: "Casa" },
           usuario1Id: { type: "string", format: "uuid", example: "9f1f0dd2-5453-4bb7-85ff-3e911b25b290" },
           usuario2Id: { type: "string", format: "uuid", example: "5fc00ffd-f4c9-4bca-8caa-a679f68f0b22" },
+          deletedAt: { type: "string", format: "date-time", nullable: true },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
         },
@@ -182,6 +183,14 @@ export const openApiSpec = {
           message: { type: "string", example: "Senha atualizada com sucesso" },
         },
         required: ["message"],
+      },
+      ContaConjuntaRemovidaResponse: {
+        type: "object",
+        properties: {
+          message: { type: "string", example: "Conta conjunta desvinculada com sucesso." },
+          deletedAt: { type: "string", format: "date-time" },
+        },
+        required: ["message", "deletedAt"],
       },
       TotalGastoMesAtualResponse: {
         type: "object",
@@ -833,7 +842,7 @@ export const openApiSpec = {
         },
       },
     },
-    "/conta-conjunta": {
+    "/contaConjunta": {
       get: {
         tags: ["Contas Conjuntas"],
         summary: "Lista as contas conjuntas do usuario autenticado",
@@ -868,6 +877,55 @@ export const openApiSpec = {
           },
           "500": {
             description: "Erro interno",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/contaConjunta/{id}": {
+      delete: {
+        tags: ["Contas Conjuntas"],
+        summary: "Desvincula uma conta conjunta",
+        security: [{ AccessTokenAuth: [] }],
+        parameters: [
+          {
+            in: "path",
+            name: "id",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Conta conjunta desvinculada com sucesso",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ContaConjuntaRemovidaResponse" },
+              },
+            },
+          },
+          "401": {
+            description: "Token ausente ou invalido",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "403": {
+            description: "Usuario nao autorizado a desvincular esta conta conjunta",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "404": {
+            description: "Conta conjunta nao encontrada",
             content: {
               "application/json": {
                 schema: { $ref: "#/components/schemas/ErrorResponse" },

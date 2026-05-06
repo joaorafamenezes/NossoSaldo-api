@@ -15,4 +15,8 @@ contaConjuntaRouter.post("/criarContaConjunta", validarToken, validateUser(creat
     contaConjuntaController.criarContaConjunta(req, res, next).catch(next);
 });
 
+contaConjuntaRouter.delete("/contaConjunta/:id", validarToken, (req: Request, res: Response, next: NextFunction) => {
+    contaConjuntaController.desvincularContaConjunta(req, res, next).catch(next);
+});
+
 export { contaConjuntaRouter };

@@ -26,7 +26,9 @@ describe("ContaConjuntaService", () => {
     (usuarioRepository.listarUsuarioPorId as jest.Mock)
       .mockResolvedValueOnce({ id: payload.usuarioConjunto })
       .mockResolvedValueOnce({ id: usuarioLogado });
-    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([]);
+    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
     (contaConjuntaRepository.listarContaConjuntaPorIds as jest.Mock).mockResolvedValue(null);
     (contaConjuntaRepository.criarContaConjunta as jest.Mock).mockResolvedValue(response);
 
@@ -38,7 +40,24 @@ describe("ContaConjuntaService", () => {
     );
   });
 
-  it("should throw 404 when one of the users does not exist", async () => {
+  it("should throw 404 with friendly message when informed account does not exist", async () => {
+    const payload = {
+      nomeConta: "Casa",
+      usuarioConjunto: "user-2",
+    };
+
+    (usuarioRepository.listarUsuarioPorId as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "user-1" });
+    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([]);
+
+    await expect(contaConjuntaService.criarContaConjunta(payload, "user-1")).rejects.toMatchObject({
+      statusCode: 404,
+      message: "A conta informada nao foi localizada em nossa base de dados.",
+    });
+  });
+
+  it("should throw 404 when logged user does not exist", async () => {
     const payload = {
       nomeConta: "Casa",
       usuarioConjunto: "user-2",
@@ -51,6 +70,7 @@ describe("ContaConjuntaService", () => {
 
     await expect(contaConjuntaService.criarContaConjunta(payload, "user-1")).rejects.toMatchObject({
       statusCode: 404,
+      message: "Usuario logado nao foi localizado.",
     });
   });
 
@@ -63,7 +83,9 @@ describe("ContaConjuntaService", () => {
     (usuarioRepository.listarUsuarioPorId as jest.Mock)
       .mockResolvedValueOnce({ id: payload.usuarioConjunto })
       .mockResolvedValueOnce({ id: "user-1" });
-    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([]);
+    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
     (contaConjuntaRepository.listarContaConjuntaPorIds as jest.Mock).mockResolvedValue({
       id: "conta-existente",
     });
@@ -82,7 +104,9 @@ describe("ContaConjuntaService", () => {
     (usuarioRepository.listarUsuarioPorId as jest.Mock)
       .mockResolvedValueOnce({ id: payload.usuarioConjunto })
       .mockResolvedValueOnce({ id: "user-1" });
-    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([]);
+    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
     (contaConjuntaRepository.listarContaConjuntaPorIds as jest.Mock).mockResolvedValue(null);
     (contaConjuntaRepository.criarContaConjunta as jest.Mock).mockRejectedValue({
       statusCode: 409,
@@ -110,6 +134,25 @@ describe("ContaConjuntaService", () => {
     });
   });
 
+  it("should throw 409 when informed user already has an active conta conjunta", async () => {
+    const payload = {
+      nomeConta: "Casa",
+      usuarioConjunto: "user-2",
+    };
+
+    (usuarioRepository.listarUsuarioPorId as jest.Mock)
+      .mockResolvedValueOnce({ id: payload.usuarioConjunto })
+      .mockResolvedValueOnce({ id: "user-1" });
+    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: "conta-ativa-user-2" }]);
+
+    await expect(contaConjuntaService.criarContaConjunta(payload, "user-1")).rejects.toMatchObject({
+      statusCode: 409,
+      message: "Usuario informado ja possui uma conta conjunta ativa.",
+    });
+  });
+
   it("should list contas conjuntas for an existing user", async () => {
     const contas = [{ id: "conta-1" }, { id: "conta-2" }];
     (usuarioRepository.listarUsuarioPorId as jest.Mock).mockResolvedValue({ id: "user-1" });
@@ -124,6 +167,38 @@ describe("ContaConjuntaService", () => {
 
     await expect(contaConjuntaService.listarContasConjuntasPorUsuarioId("user-1")).rejects.toMatchObject({
       statusCode: 404,
+    });
+  });
+
+  it("should desvincular conta conjunta and return deletedAt", async () => {
+    const deletedAt = new Date("2026-05-05T12:00:00.000Z");
+    (usuarioRepository.listarUsuarioPorId as jest.Mock).mockResolvedValue({ id: "user-1" });
+    (contaConjuntaRepository.buscarContaConjuntaPorId as jest.Mock).mockResolvedValue({
+      id: "conta-1",
+      usuario1Id: "user-1",
+      usuario2Id: "user-2",
+    });
+    (contaConjuntaRepository.desvincularContaConjunta as jest.Mock).mockResolvedValue({
+      id: "conta-1",
+      deletedAt,
+    });
+
+    await expect(contaConjuntaService.desvincularContaConjunta("conta-1", "user-1")).resolves.toEqual({
+      message: "Conta conjunta desvinculada com sucesso.",
+      deletedAt,
+    });
+  });
+
+  it("should throw 403 when user does not belong to the conta conjunta being removed", async () => {
+    (usuarioRepository.listarUsuarioPorId as jest.Mock).mockResolvedValue({ id: "user-1" });
+    (contaConjuntaRepository.buscarContaConjuntaPorId as jest.Mock).mockResolvedValue({
+      id: "conta-1",
+      usuario1Id: "user-3",
+      usuario2Id: "user-2",
+    });
+
+    await expect(contaConjuntaService.desvincularContaConjunta("conta-1", "user-1")).rejects.toMatchObject({
+      statusCode: 403,
     });
   });
 });

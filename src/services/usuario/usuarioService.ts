@@ -4,6 +4,7 @@ import iRedefinirSenhaComToken from "../../@types/usuario/iRedefinirSenhaComToke
 import iSolicitarResetSenha from "../../@types/usuario/iSolicitarResetSenha";
 import { usuarioRepository } from "../../repositories/usuario/usuarioRepository";
 import { passwordResetTokenRepository } from "../../repositories/usuario/passwordResetTokenRepository";
+import { emailVerificationTokenRepository } from "../../repositories/usuario/emailVerificationTokenRepository";
 import iCriarUsuario from "../../@types/usuario/iCriarUsuario";
 import { mailer } from "../../lib/mailer";
 import autentication from "../../secure/autentication";
@@ -11,6 +12,7 @@ import iLogin from "../../@types/iLogin";
 import authorization from "../../secure/authorization";
 
 const passwordResetExpiresInMinutes = Number(process.env.PASSWORD_RESET_TOKEN_EXPIRES_MINUTES ?? "60");
+const emailVerificationExpiresInMinutes = Number(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRES_MINUTES ?? "1440");
 
 function hashResetToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -19,6 +21,14 @@ function hashResetToken(token: string) {
 function buildPasswordResetValidationUrl(token: string) {
   const frontendResetPasswordUrl = process.env.FRONTEND_RESET_PASSWORD_URL ?? "http://localhost:5173/redefinir-senha";
   const redirectUrl = new URL(frontendResetPasswordUrl);
+  redirectUrl.searchParams.set("token", token);
+
+  return redirectUrl.toString();
+}
+
+function buildEmailVerificationUrl(token: string) {
+  const frontendEmailVerificationUrl = process.env.FRONTEND_EMAIL_VERIFICATION_URL ?? "http://localhost:5173/validar-email";
+  const redirectUrl = new URL(frontendEmailVerificationUrl);
   redirectUrl.searchParams.set("token", token);
 
   return redirectUrl.toString();
@@ -36,11 +46,31 @@ class UsuarioService {
       throw createHttpError(409, "UsuÃ¡rio jÃ¡ existe com esse email no banco de dados.");
     }
 
-    return await usuarioRepository.criarUsuario({
+    const usuarioCriado = await usuarioRepository.criarUsuario({
       nome,
       email,
       senha,
     });
+
+    const token = randomBytes(32).toString("hex");
+    const tokenHash = hashResetToken(token);
+    const expiresAt = new Date(Date.now() + emailVerificationExpiresInMinutes * 60 * 1000);
+
+    await emailVerificationTokenRepository.invalidarTokensAtivosPorUsuarioId(usuarioCriado.id);
+    await emailVerificationTokenRepository.criarToken({
+      tokenHash,
+      usuarioId: usuarioCriado.id,
+      expiresAt,
+    });
+
+    await mailer.sendEmailVerificationEmail({
+      to: usuarioCriado.email,
+      nome: usuarioCriado.nome,
+      verificationUrl: buildEmailVerificationUrl(token),
+      expiresInMinutes: emailVerificationExpiresInMinutes,
+    });
+
+    return usuarioCriado;
   }
 
   async login(data: iLogin) {
@@ -51,6 +81,10 @@ class UsuarioService {
 
     if (!usuario) {
       return null;
+    }
+
+    if (!usuario.emailVerifiedAt) {
+      throw createHttpError(403, "Confirme seu email antes de acessar sua conta.");
     }
 
     if (autentication.checkPassword(senha, usuario.senha)) {
@@ -150,6 +184,23 @@ class UsuarioService {
     }
 
     return true;
+  }
+
+  async validarEmail(token: string) {
+    const tokenHash = hashResetToken(token);
+    const registro = await emailVerificationTokenRepository.buscarTokenValidoPorHash(tokenHash);
+
+    if (!registro) {
+      throw createHttpError(400, "Token de verificacao de email invalido ou expirado.");
+    }
+
+    const usuario = await usuarioRepository.marcarEmailComoVerificado(registro.usuarioId);
+    await emailVerificationTokenRepository.marcarTokenComoUsado(registro.id);
+
+    return {
+      message: "Email verificado com sucesso.",
+      usuario,
+    };
   }
 
   async redefinirSenhaComToken(data: iRedefinirSenhaComToken) {

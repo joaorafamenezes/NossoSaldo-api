@@ -9,6 +9,7 @@ import { atualizaUsuarioSchema } from "../../schemas/usuario/atualizaUsuarioSche
 import { atualizaSenhaUsuarioSchema } from "../../schemas/usuario/atualizaSenhaUsuarioSchema";
 import { solicitarResetSenhaSchema } from "../../schemas/usuario/solicitarResetSenhaSchema";
 import { redefinirSenhaComTokenSchema } from "../../schemas/usuario/redefinirSenhaComTokenSchema";
+import { validarEmailSchema } from "../../schemas/usuario/validarEmailSchema";
 
 const usuarioRouter = Router();
 
@@ -40,6 +41,10 @@ usuarioRouter.get("/usuarios/redefinir-senha/validar", (req: Request, res: Respo
 
 usuarioRouter.patch("/usuarios/redefinir-senha", validateUser(redefinirSenhaComTokenSchema), (req: Request, res: Response, next: NextFunction) => {
     usuarioControler.redefinirSenhaComToken(req, res, next).catch(next);
+});
+
+usuarioRouter.patch("/usuarios/validar-email", validateUser(validarEmailSchema), (req: Request, res: Response, next: NextFunction) => {
+    usuarioControler.validarEmail(req, res, next).catch(next);
 });
 
 usuarioRouter.patch("/usuarios", validarToken, validateUser(atualizaUsuarioSchema), (req: Request, res: Response, next: NextFunction) => {

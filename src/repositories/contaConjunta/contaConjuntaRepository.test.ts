@@ -1,5 +1,4 @@
 import { contaConjuntaRepository } from "./contaConjuntaRepository";
-import { PrismaClient } from "@prisma/client";
 
 jest.mock("@prisma/client", () => {
   const mockContaConjunta = {
@@ -7,10 +6,14 @@ jest.mock("@prisma/client", () => {
     findFirst: jest.fn(),
     findMany: jest.fn(),
   };
+  const mockExecuteRaw = jest.fn();
+  const mockQueryRaw = jest.fn();
 
   return {
     PrismaClient: jest.fn(() => ({
       contaConjunta: mockContaConjunta,
+      $executeRaw: mockExecuteRaw,
+      $queryRaw: mockQueryRaw,
     })),
   };
 });
@@ -43,7 +46,7 @@ describe("ContaConjuntaRepository", () => {
 
     await expect(
       contaConjuntaRepository.criarContaConjunta("Casa", "user-1", "user-2"),
-    ).rejects.toHaveProperty("message", "Não foi possível criar a conta conjunta.");
+    ).rejects.toHaveProperty("message", "Nao foi possivel criar a conta conjunta.");
   });
 
   it("should find conta conjunta by pair of user ids", async () => {
@@ -51,6 +54,21 @@ describe("ContaConjuntaRepository", () => {
     mockPrisma.contaConjunta.findFirst.mockResolvedValue(conta);
 
     await expect(contaConjuntaRepository.listarContaConjuntaPorIds("user-1", "user-2")).resolves.toEqual(conta);
+    expect(mockPrisma.contaConjunta.findFirst).toHaveBeenCalledWith({
+      where: {
+        deletedAt: null,
+        OR: [
+          {
+            usuario1Id: "user-1",
+            usuario2Id: "user-2",
+          },
+          {
+            usuario1Id: "user-2",
+            usuario2Id: "user-1",
+          },
+        ],
+      },
+    });
   });
 
   it("should map list conta conjunta by ids errors to 500", async () => {
@@ -58,7 +76,7 @@ describe("ContaConjuntaRepository", () => {
 
     await expect(contaConjuntaRepository.listarContaConjuntaPorIds("user-1", "user-2")).rejects.toHaveProperty(
       "message",
-      "Não foi possível listar a conta conjunta.",
+      "Nao foi possivel listar a conta conjunta.",
     );
   });
 
@@ -67,6 +85,31 @@ describe("ContaConjuntaRepository", () => {
     mockPrisma.contaConjunta.findMany.mockResolvedValue(contas);
 
     await expect(contaConjuntaRepository.listarContasConjuntasPorUsuarioId("user-1")).resolves.toEqual(contas);
+    expect(mockPrisma.contaConjunta.findMany).toHaveBeenCalledWith({
+      where: {
+        deletedAt: null,
+        OR: [
+          { usuario1Id: "user-1" },
+          { usuario2Id: "user-1" },
+        ],
+      },
+      include: {
+        usuario1: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
+        usuario2: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
+      },
+    });
   });
 
   it("should map list contas conjuntas by user id errors to 500", async () => {
@@ -74,7 +117,47 @@ describe("ContaConjuntaRepository", () => {
 
     await expect(contaConjuntaRepository.listarContasConjuntasPorUsuarioId("user-1")).rejects.toHaveProperty(
       "message",
-      "Não foi possível listar as contas conjuntas.",
+      "Nao foi possivel listar as contas conjuntas.",
     );
+  });
+
+  it("should find conta conjunta by id", async () => {
+    const conta = { id: "conta-1", usuario1Id: "user-1", usuario2Id: "user-2" };
+    mockPrisma.contaConjunta.findFirst.mockResolvedValue(conta);
+
+    await expect(contaConjuntaRepository.buscarContaConjuntaPorId("conta-1")).resolves.toEqual(conta);
+    expect(mockPrisma.contaConjunta.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "conta-1",
+        deletedAt: null,
+      },
+      include: {
+        usuario1: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
+        usuario2: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
+      },
+    });
+  });
+
+  it("should soft delete conta conjunta successfully", async () => {
+    const deletedAt = new Date("2026-05-05T12:00:00.000Z");
+    mockPrisma.$executeRaw.mockResolvedValue(1);
+    mockPrisma.$queryRaw.mockResolvedValue([{ id: "conta-1", deletedAt }]);
+
+    await expect(contaConjuntaRepository.desvincularContaConjunta("conta-1")).resolves.toEqual({
+      id: "conta-1",
+      deletedAt,
+    });
   });
 });
