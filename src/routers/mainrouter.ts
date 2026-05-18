@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { categoriaRouter } from "./categoria/categoriaRouter";
 import { contaConjuntaRouter } from "./contaConjunta/contaConjuntaRouter";
 import { gastoRouter } from "./gasto/gastoRouter";
+import { relatorioRouter } from "./relatorio/relatorioRouter";
 import { usuarioRouter } from "./usuario/usuarioRouter";
 
 const router = Router();
@@ -15,5 +16,6 @@ router.use(usuarioRouter);
 router.use(categoriaRouter);
 router.use(contaConjuntaRouter);
 router.use(gastoRouter);
+router.use(relatorioRouter);
 
 export { router };

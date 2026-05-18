@@ -8,6 +8,7 @@
     "start": "node dist/server.js",
     "lint": "eslint . --ext .ts",
     "db:ensure": "ts-node src/scripts/ensureDatabase.ts",
+    "seed:dev": "npm run db:ensure && ts-node src/scripts/seedDevelopmentData.ts",
     "prisma": "prisma",
     "migrate": "npm run db:ensure && prisma migrate dev --name init",
     "test": "jest --config jest.config.cjs --runInBand --passWithNoTests"
