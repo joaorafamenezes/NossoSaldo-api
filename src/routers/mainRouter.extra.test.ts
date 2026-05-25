@@ -26,7 +26,7 @@ describe('mainRouter extra routes', () => {
       usuarioControler: { criarUsuario: jest.fn(), login: jest.fn() },
     }));
 
-    const { router } = await import('./mainRouter');
+    const { router } = await import('./mainrouter');
     const app = express();
     app.use(express.json());
     app.use(router);
@@ -57,7 +57,7 @@ describe('mainRouter extra routes', () => {
       usuarioControler: { criarUsuario: jest.fn(), login: jest.fn() },
     }));
 
-    const { router } = await import('./mainRouter');
+    const { router } = await import('./mainrouter');
     const app = express();
     app.use(express.json());
     app.use(router);
@@ -88,7 +88,7 @@ describe('mainRouter extra routes', () => {
       categoriaController: { buscarTodasCategorias: jest.fn(), criarCategoria: jest.fn() },
     }));
 
-    const { router } = await import('./mainRouter');
+    const { router } = await import('./mainrouter');
     const app = express();
     app.use(express.json());
     app.use(router);

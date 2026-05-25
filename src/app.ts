@@ -4,7 +4,7 @@ import { isHttpError } from "http-errors";
 import swaggerUi from "swagger-ui-express";
 import { openApiSpec } from "./docs/openapi";
 import { httpLogger } from "./lib/logger";
-import { router } from "./routers/mainRouter";
+import { router } from "./routers/mainrouter";
 
 const app = express();
 

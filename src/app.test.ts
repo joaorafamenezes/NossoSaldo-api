@@ -7,7 +7,7 @@ describe("app error middleware", () => {
   });
 
   it("should return the http error status and message for operational errors", async () => {
-    jest.doMock("./routers/mainRouter", () => {
+    jest.doMock("./routers/mainrouter", () => {
       const express = require("express");
       const router = express.Router();
 
@@ -34,7 +34,7 @@ describe("app error middleware", () => {
   });
 
   it("should return validation details for 422 errors", async () => {
-    jest.doMock("./routers/mainRouter", () => {
+    jest.doMock("./routers/mainrouter", () => {
       const express = require("express");
       const router = express.Router();
 
@@ -61,7 +61,7 @@ describe("app error middleware", () => {
   });
 
   it("should return 500 when route passes a generic Error to next", async () => {
-    jest.doMock("./routers/mainRouter", () => {
+    jest.doMock("./routers/mainrouter", () => {
       const express = require("express");
       const router = express.Router();
 
