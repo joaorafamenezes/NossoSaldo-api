@@ -1,17 +1,41 @@
 import "dotenv/config";
 import { createHash } from "crypto";
 import fs from "fs";
+import path from "path";
 import jwt, { TokenExpiredError, VerifyErrors, VerifyOptions } from "jsonwebtoken";
 
 const jwtAlgorithm = "RS256";
-const jwtExpires = parseInt(`${process.env.JWT_EXPIRES}`);
+const jwtExpires = parseInt(`${process.env.JWT_EXPIRES}`, 10);
 
 if (Number.isNaN(jwtExpires)) {
-  throw new Error("JWT_EXPIRES invÃƒÂ¡lido");
+  throw new Error("JWT_EXPIRES invalido");
 }
 
-const privateKey = fs.readFileSync("./keys/private.key", "utf-8");
-const publicKey = fs.readFileSync("./keys/public.key", "utf-8");
+function normalizePemFromEnv(value: string | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  return value.replace(/\\n/g, "\n").trim();
+}
+
+function readKeyFile(fileName: string) {
+  const filePath = path.resolve(process.cwd(), "keys", fileName);
+  return fs.readFileSync(filePath, "utf-8").trim();
+}
+
+function resolveJwtKey(envName: "JWT_PRIVATE_KEY" | "JWT_PUBLIC_KEY", fileName: string) {
+  const keyFromEnv = normalizePemFromEnv(process.env[envName]);
+
+  if (keyFromEnv) {
+    return keyFromEnv;
+  }
+
+  return readKeyFile(fileName);
+}
+
+const privateKey = resolveJwtKey("JWT_PRIVATE_KEY", "private.key");
+const publicKey = resolveJwtKey("JWT_PUBLIC_KEY", "public.key");
 
 export type Token = { id: string };
 
