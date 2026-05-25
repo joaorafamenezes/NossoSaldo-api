@@ -11,6 +11,7 @@
     "seed:dev": "npm run db:ensure && ts-node src/scripts/seedDevelopmentData.ts",
     "prisma": "prisma",
     "migrate": "npm run db:ensure && prisma migrate dev --name init",
+    "migrate:deploy": "prisma migrate deploy",
     "test": "jest --config jest.config.cjs --runInBand --passWithNoTests"
   },
   "repository": {
