@@ -11,4 +11,9 @@ export default interface iAtualizarGasto {
     dataPagamento?: Date | null;
     observacao?: string | null;
     categoriaId?: string;
+    cartaoCreditoId?: string | null;
+    faturaCartaoId?: string | null;
+    recorrenciaPaiId?: string | null;
+    dataInicioRecorrencia?: Date | null;
+    dataFimRecorrencia?: Date | null;
 }

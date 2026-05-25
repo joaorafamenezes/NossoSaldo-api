@@ -33,6 +33,10 @@ gastoRouter.patch("/pagarGastos/:id/pagamento", validarToken, validateUser(pagar
     gastoController.pagarGasto(req, res, next).catch(next);
 });
 
+gastoRouter.patch("/pagarGastos/:id/reabertura", validarToken, (req: Request, res: Response, next: NextFunction) => {
+    gastoController.reabrirGasto(req, res, next).catch(next);
+});
+
 gastoRouter.patch("/lancamentosBase/:id/pagamento", validarToken, validateUser(pagarGastoSchema), (req: Request, res: Response, next: NextFunction) => {
     gastoController.pagarParcela(req, res, next).catch(next);
 });

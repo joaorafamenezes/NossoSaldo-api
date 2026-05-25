@@ -21,8 +21,12 @@ class GastoController {
     async listarGastosPorUsuarioLogado(req: Request, res: Response, next: NextFunction) {
         try {
             const payload = res.locals.payload as Token;
+            const query = req.query ?? {};
+            const competencia = typeof query.competencia === "string" ? query.competencia : undefined;
+            const de = typeof query.de === "string" ? query.de : undefined;
+            const ate = typeof query.ate === "string" ? query.ate : undefined;
 
-            const gastos = await gastoService.listarGastosPorResponsavelId(payload.id);            
+            const gastos = await gastoService.listarGastosPorResponsavelId(payload.id, { competencia, de, ate });
             return sendSuccess(res, StatusCodes.OK, gastos, {
                 total: gastos.length,
             });
@@ -76,6 +80,18 @@ class GastoController {
 
             const gastoPago = await gastoService.pagarGasto(id, pagamentoData, payload.id);
             return sendSuccess(res, StatusCodes.OK, gastoPago);
+        } catch (error) {
+            return next(error);
+        }
+    }
+
+    async reabrirGasto(req: Request, res: Response, next: NextFunction) {
+        try {
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const payload = res.locals.payload as Token;
+
+            const gastoReaberto = await gastoService.reabrirGasto(id, payload.id);
+            return sendSuccess(res, StatusCodes.OK, gastoReaberto);
         } catch (error) {
             return next(error);
         }

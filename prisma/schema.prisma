@@ -25,112 +25,177 @@ enum OrigemLancamento {
   parcelado
 }
 
+enum StatusFaturaCartao {
+  aberta
+  fechada
+  paga
+  vencida
+  cancelada
+}
+
 model Usuario {
-  id                    String         @id @default(uuid())
-  nome                  String
-  email                 String         @unique
-  senha                 String
-  emailVerifiedAt       DateTime?
-  passwordResetTokens   PasswordResetToken[]
+  id                      String                   @id @default(uuid())
+  nome                    String
+  email                   String                   @unique
+  senha                   String
+  emailVerifiedAt         DateTime?
+  passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
-  contasComoPrimeiro    ContaConjunta[] @relation("Usuario1")
-  contasComoSegundo     ContaConjunta[] @relation("Usuario2")
-  gastosComoResponsavel Gasto[]        @relation("Responsavel")
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
+  contasComoPrimeiro      ContaConjunta[]          @relation("Usuario1")
+  contasComoSegundo       ContaConjunta[]          @relation("Usuario2")
+  gastosComoResponsavel   Gasto[]                  @relation("Responsavel")
+  cartoesCredito          CartaoCredito[]
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 }
 
 model EmailVerificationToken {
-  id        String   @id @default(uuid())
-  tokenHash String   @unique
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
   usuarioId String
-  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([usuarioId])
   @@index([expiresAt])
 }
 
 model ContaConjunta {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   nomeConta  String
   usuario1Id String
   usuario2Id String
-  usuario1   Usuario  @relation("Usuario1", fields: [usuario1Id], references: [id], onDelete: Cascade)
-  usuario2   Usuario  @relation("Usuario2", fields: [usuario2Id], references: [id], onDelete: Cascade)
+  usuario1   Usuario   @relation("Usuario1", fields: [usuario1Id], references: [id], onDelete: Cascade)
+  usuario2   Usuario   @relation("Usuario2", fields: [usuario2Id], references: [id], onDelete: Cascade)
   deletedAt  DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@index([usuario1Id])
   @@index([usuario2Id])
 }
 
 model Categoria {
-  id         String   @id @default(uuid())
-  descricao  String
-  iconName   String   @default("🏷️")
-  gastos     Gasto[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(uuid())
+  descricao String
+  iconName  String   @default("🏷️")
+  gastos    Gasto[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CartaoCredito {
+  id            String         @id @default(uuid())
+  descricao     String
+  diaFechamento Int
+  diaVencimento Int
+  valorLimite   Decimal        @db.Decimal(10, 2)
+  observacoes   String?        @db.Text
+  usuarioId     String
+  usuario       Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  gastos        Gasto[]
+  faturas       FaturaCartao[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([usuarioId])
+}
+
+model FaturaCartao {
+  id              String             @id @default(uuid())
+  cartaoCreditoId String
+  cartaoCredito   CartaoCredito      @relation(fields: [cartaoCreditoId], references: [id], onDelete: Cascade)
+  competencia     String
+  dataAbertura    DateTime
+  dataFechamento  DateTime
+  dataVencimento  DateTime
+  valorTotal      Decimal            @default(0.00) @db.Decimal(10, 2)
+  status          StatusFaturaCartao @default(aberta)
+  dataPagamento   DateTime?
+  observacoes     String?            @db.Text
+  gastos          Gasto[]
+  lancamentosBase LancamentoBase[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([cartaoCreditoId, competencia])
+  @@index([cartaoCreditoId])
+  @@index([competencia])
+  @@index([status])
+  @@index([dataVencimento])
 }
 
 model Gasto {
-  id              String        @id @default(uuid())
-  descricao       String
-  tipo            TipoGasto
-  status          StatusGasto
+  id               String           @id @default(uuid())
+  descricao        String
+  tipo             TipoGasto
+  status           StatusGasto
   origemLancamento OrigemLancamento
-  numeroParcelas  Int           @default(1)
-  naoCompartilhar Boolean       @default(false)
-  valor           Decimal       @db.Decimal(10, 2)
-  competencia     DateTime?
-  dataVencimento  DateTime?
-  dataPagamento   DateTime?
-  observacao      String?       @db.Text
-  categoriaId     String
-  categoria       Categoria     @relation(fields: [categoriaId], references: [id])
-  responsavelId   String
-  responsavel     Usuario       @relation("Responsavel", fields: [responsavelId], references: [id])
-  lancamentosBase LancamentoBase[]
-  deletedAt       DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  numeroParcelas   Int              @default(1)
+  naoCompartilhar  Boolean          @default(false)
+  valor            Decimal          @db.Decimal(10, 2)
+  competencia      DateTime?
+  dataVencimento   DateTime?
+  dataPagamento    DateTime?
+  observacao       String?          @db.Text
+  categoriaId      String
+  categoria        Categoria        @relation(fields: [categoriaId], references: [id])
+  responsavelId    String
+  responsavel      Usuario          @relation("Responsavel", fields: [responsavelId], references: [id])
+  cartaoCreditoId  String?
+  cartaoCredito    CartaoCredito?   @relation(fields: [cartaoCreditoId], references: [id])
+  faturaCartaoId   String?
+  faturaCartao     FaturaCartao?    @relation(fields: [faturaCartaoId], references: [id])
+  recorrenciaPaiId String?
+  recorrenciaPai   Gasto?           @relation("GastoRecorrencia", fields: [recorrenciaPaiId], references: [id])
+  recorrencias     Gasto[]          @relation("GastoRecorrencia")
+  dataInicioRecorrencia DateTime?
+  dataFimRecorrencia    DateTime?
+  lancamentosBase  LancamentoBase[]
+  deletedAt        DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@index([categoriaId])
   @@index([responsavelId])
+  @@index([cartaoCreditoId])
+  @@index([faturaCartaoId])
+  @@index([recorrenciaPaiId])
+  @@unique([recorrenciaPaiId, competencia])
 }
 
 model LancamentoBase {
-  id                    String      @id @default(uuid())
+  id                    String        @id @default(uuid())
   gastoId               String
-  gasto                 Gasto       @relation(fields: [gastoId], references: [id])
+  gasto                 Gasto         @relation(fields: [gastoId], references: [id])
   descricao             String
-  valorParcela          Decimal     @db.Decimal(10, 2)
+  valorParcela          Decimal       @db.Decimal(10, 2)
   numeroParcela         Int
   dataVencimentoParcela DateTime
   dataPagamentoParcela  DateTime?
   status                StatusGasto
   competencia           DateTime
-  observacao            String?     @db.Text
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  observacao            String?       @db.Text
+  faturaCartaoId        String?
+  faturaCartao          FaturaCartao? @relation(fields: [faturaCartaoId], references: [id])
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   @@index([gastoId])
+  @@index([faturaCartaoId])
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid())
-  tokenHash String   @unique
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
   usuarioId String
-  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([usuarioId])
   @@index([expiresAt])
 }
-

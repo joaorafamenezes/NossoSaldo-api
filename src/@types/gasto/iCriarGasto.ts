@@ -12,4 +12,9 @@ export default interface iCriarGasto {
     observacao?: string;
     categoriaId: string;
     responsavelId: string;
+    cartaoCreditoId?: string | null;
+    faturaCartaoId?: string | null;
+    recorrenciaPaiId?: string | null;
+    dataInicioRecorrencia?: Date | null;
+    dataFimRecorrencia?: Date | null;
 }

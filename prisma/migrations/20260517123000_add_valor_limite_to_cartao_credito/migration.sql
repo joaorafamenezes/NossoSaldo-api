@@ -1,0 +1,2 @@
+ALTER TABLE `CartaoCredito`
+ADD COLUMN `valorLimite` DECIMAL(10, 2) NOT NULL DEFAULT 0.00;

@@ -56,7 +56,11 @@ describe("GastoController", () => {
       mockNext,
     );
 
-    expect(gastoService.listarGastosPorResponsavelId).toHaveBeenCalledWith("user-1");
+    expect(gastoService.listarGastosPorResponsavelId).toHaveBeenCalledWith("user-1", {
+      ate: undefined,
+      competencia: undefined,
+      de: undefined,
+    });
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
     expect(mockResponse.json).toHaveBeenCalledWith({
       data: gastos,

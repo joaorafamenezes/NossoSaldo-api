@@ -1,6 +1,7 @@
 import { relatorioRepository } from "../../repositories/relatorio/relatorioRepository";
 import { contaConjuntaRepository } from "../../repositories/contaConjunta/contaConjuntaRepository";
 import createHttpError from "http-errors";
+import { gastoService } from "../gasto/gastoService";
 
 type RelatorioComparativoMensalItem = {
     referencia: string;
@@ -20,6 +21,8 @@ class RelatorioService{
 
         dataAte.setHours(23, 59, 59, 999)
 
+        await gastoService.gerarGastosRecorrentesPorPeriodo(userId, dataDe, dataAte);
+
         return await relatorioRepository.gerarRelatorioEvolucaoMensal(dataDe, dataAte, userId);
     }
 
@@ -28,6 +31,8 @@ class RelatorioService{
         const dataMesAnterior = new Date(mesAnterior);
 
         dataMesAtual.setHours(23, 59, 59, 999)
+
+        await gastoService.gerarGastosRecorrentesPorPeriodo(userId, dataMesAnterior, dataMesAtual);
 
         const relatorio = await relatorioRepository.gerarRelatorioComparativoMensal(
             dataMesAtual,
@@ -63,6 +68,8 @@ class RelatorioService{
 
         dataAte.setHours(23, 59, 59, 999)
 
+        await gastoService.gerarGastosRecorrentesPorPeriodo(userId, dataDe, dataAte);
+
         return await relatorioRepository.gerarRelatorioTopCategoria(dataDe, dataAte, userId);
     }
 
@@ -77,6 +84,9 @@ class RelatorioService{
         if (!contaConjuntaAtiva) {
             throw createHttpError(404, "Usuario nao possui conta conjunta ativa.");
         }
+
+        await gastoService.gerarGastosRecorrentesPorPeriodo(contaConjuntaAtiva.usuario1Id, dataDe, dataAte);
+        await gastoService.gerarGastosRecorrentesPorPeriodo(contaConjuntaAtiva.usuario2Id, dataDe, dataAte);
 
         const totais = await relatorioRepository.gerarRelatorioQuemGastaMais(
             dataDe,

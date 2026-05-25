@@ -40,6 +40,13 @@ const updateGastoSchema = joi.object({
         "string.base": "A categoria deve ser um texto.",
         "string.uuid": "A categoria deve ser um UUID valido.",
     }),
+    cartaoCreditoId: joi.string().uuid().allow(null, "").messages({
+        "string.base": "O cartao de credito deve ser um texto.",
+        "string.uuid": "O cartao de credito deve ser um UUID valido.",
+    }),
+    dataFimRecorrencia: joi.date().allow(null).messages({
+        "date.base": "A data de fim da recorrencia deve ser uma data valida.",
+    }),
 })
     .min(1)
     .messages({

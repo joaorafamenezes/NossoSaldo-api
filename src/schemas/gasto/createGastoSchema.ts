@@ -37,10 +37,10 @@ const createGastoSchema = joi.object({
         'date.base': 'A competencia deve ser uma data valida.',
     }),
     dataVencimento: joi.when('origemLancamento', {
-        is: 'parcelado',
+        is: joi.valid('parcelado', 'recorrente'),
         then: joi.date().required().messages({
             'date.base': 'A data de vencimento deve ser uma data valida.',
-            'any.required': 'A data de vencimento e obrigatoria para um lancamento parcelado.',
+            'any.required': 'A data de vencimento e obrigatoria para lancamentos parcelados ou recorrentes.',
         }),
         otherwise: joi.date().optional().allow(null).messages({
             'date.base': 'A data de vencimento deve ser uma data valida.',
@@ -57,6 +57,27 @@ const createGastoSchema = joi.object({
         'string.uuid': 'A categoria deve ser um UUID valido.',
         'any.required': 'A categoria e obrigatoria.',
     }),
-});
+    cartaoCreditoId: joi.string().uuid().optional().allow(null, '').messages({
+        'string.base': 'O cartao de credito deve ser um texto.',
+        'string.uuid': 'O cartao de credito deve ser um UUID valido.',
+    }),
+    dataFimRecorrencia: joi.date().optional().allow(null).messages({
+        'date.base': 'A data de fim da recorrencia deve ser uma data valida.',
+    }),
+}).custom((value, helpers) => {
+    if (
+        value.origemLancamento === 'recorrente'
+        && value.dataFimRecorrencia
+        && value.dataVencimento
+        && new Date(value.dataFimRecorrencia).getTime() < new Date(value.dataVencimento).getTime()
+    ) {
+        return helpers.error('any.invalid');
+    }
+
+    return value;
+}, 'validacao de recorrencia')
+    .messages({
+        'any.invalid': 'A data final da recorrencia nao pode ser anterior a data de vencimento inicial.',
+    });
 
 export { createGastoSchema };

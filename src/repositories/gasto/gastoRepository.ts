@@ -33,6 +33,10 @@ function calculateInstallmentValues(totalValue: number, installments: number) {
     });
 }
 
+function getStartOfMonth(date: Date) {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
 async function refreshLancamentosBase(transaction: any, gasto: any) {
     const numeroParcelas = gasto.numeroParcelas ?? 1;
     const dataVencimento = gasto.dataVencimento ? new Date(gasto.dataVencimento) : null;
@@ -118,6 +122,11 @@ class GastoRepository {
                         observacao,
                         categoriaId,
                         responsavelId,
+                        cartaoCreditoId,
+                        faturaCartaoId,
+                        recorrenciaPaiId,
+                        dataInicioRecorrencia,
+                        dataFimRecorrencia,
                         createdAt,
                         updatedAt
                     )
@@ -136,10 +145,26 @@ class GastoRepository {
                         ${gasto.observacao ?? null},
                         ${gasto.categoriaId},
                         ${gasto.responsavelId},
+                        ${gasto.cartaoCreditoId || null},
+                        ${gasto.faturaCartaoId || null},
+                        ${gasto.recorrenciaPaiId || null},
+                        ${gasto.dataInicioRecorrencia ?? null},
+                        ${gasto.dataFimRecorrencia ?? null},
                         CURRENT_TIMESTAMP(3),
                         CURRENT_TIMESTAMP(3)
                     )
                 `;
+
+                if (gasto.origemLancamento === "recorrente" && !gasto.recorrenciaPaiId) {
+                    await transaction.$executeRaw`
+                        UPDATE Gasto
+                        SET
+                            recorrenciaPaiId = ${id},
+                            dataInicioRecorrencia = COALESCE(dataInicioRecorrencia, dataVencimento, competencia),
+                            updatedAt = CURRENT_TIMESTAMP(3)
+                        WHERE id = ${id}
+                    `;
+                }
 
                 if (gasto.origemLancamento !== "parcelado") {
                     return;
@@ -199,11 +224,24 @@ class GastoRepository {
                     gasto.categoriaId,
                     gasto.responsavelId,
                     usuario.nome AS responsavelNome,
+                    gasto.cartaoCreditoId,
+                    gasto.faturaCartaoId,
+                    gasto.recorrenciaPaiId,
+                    gasto.dataInicioRecorrencia,
+                    gasto.dataFimRecorrencia,
+                    fatura.competencia AS faturaCartaoCompetencia,
+                    fatura.status AS faturaCartaoStatus,
+                    cartao.descricao AS cartaoCreditoDescricao,
+                    cartaoUsuario.nome AS cartaoCreditoUsuarioNome,
+                    cartaoUsuario.email AS cartaoCreditoUsuarioEmail,
                     gasto.deletedAt,
                     gasto.createdAt,
                     gasto.updatedAt
                 FROM Gasto gasto
                 INNER JOIN Usuario usuario ON usuario.id = gasto.responsavelId
+                LEFT JOIN CartaoCredito cartao ON cartao.id = gasto.cartaoCreditoId
+                LEFT JOIN FaturaCartao fatura ON fatura.id = gasto.faturaCartaoId
+                LEFT JOIN Usuario cartaoUsuario ON cartaoUsuario.id = cartao.usuarioId
                 WHERE gasto.deletedAt IS NULL
                   AND (
                     gasto.responsavelId = ${responsavelId}
@@ -228,6 +266,7 @@ class GastoRepository {
                     dataPagamentoParcela,
                     status,
                     competencia,
+                    faturaCartaoId,
                     observacao,
                     createdAt,
                     updatedAt
@@ -279,6 +318,92 @@ class GastoRepository {
         }
     }
 
+    async listarModelosRecorrentesAtivosPorResponsaveis(responsaveisIds: string[], inicioMes: Date, fimMes: Date) {
+        try {
+            if (responsaveisIds.length === 0) {
+                return [];
+            }
+
+            return await prisma.$queryRaw<Array<any>>`
+                SELECT
+                    gasto.id,
+                    gasto.descricao,
+                    gasto.tipo,
+                    gasto.valor,
+                    gasto.categoriaId,
+                    gasto.responsavelId,
+                    gasto.cartaoCreditoId,
+                    gasto.naoCompartilhar,
+                    gasto.dataVencimento,
+                    gasto.observacao,
+                    gasto.dataInicioRecorrencia,
+                    gasto.dataFimRecorrencia
+                FROM Gasto gasto
+                WHERE gasto.deletedAt IS NULL
+                  AND gasto.origemLancamento = 'recorrente'
+                  AND (
+                    gasto.recorrenciaPaiId IS NULL
+                    OR gasto.recorrenciaPaiId = gasto.id
+                  )
+                  AND gasto.dataVencimento IS NOT NULL
+                  AND gasto.responsavelId IN (${Prisma.join(responsaveisIds)})
+                  AND COALESCE(gasto.dataInicioRecorrencia, gasto.dataVencimento) < ${fimMes}
+                  AND gasto.dataFimRecorrencia IS NULL
+            `;
+        } catch (error) {
+            throw createRepositoryError(error, "Nao foi possivel listar os modelos de gastos recorrentes.");
+        }
+    }
+
+    async buscarGastoGeradoPorRecorrencia(recorrenciaPaiId: string, inicioMes: Date, fimMes: Date) {
+        try {
+            return await prisma.gasto.findFirst({
+                where: {
+                    recorrenciaPaiId,
+                    deletedAt: null,
+                    competencia: {
+                        gte: inicioMes,
+                        lt: fimMes,
+                    },
+                },
+            });
+        } catch (error) {
+            throw createRepositoryError(error, "Nao foi possivel buscar o gasto recorrente gerado.");
+        }
+    }
+
+    async listarGastosDaSerieRecorrente(recorrenciaPaiId: string) {
+        try {
+            return await prisma.gasto.findMany({
+                where: {
+                    deletedAt: null,
+                    origemLancamento: "recorrente",
+                    recorrenciaPaiId,
+                },
+                orderBy: {
+                    competencia: "asc",
+                },
+            });
+        } catch (error) {
+            throw createRepositoryError(error, "Nao foi possivel listar os gastos da serie recorrente.");
+        }
+    }
+
+    calcularDataVencimentoRecorrente(dataVencimentoOriginal: Date, competencia: Date) {
+        const diaVencimento = dataVencimentoOriginal.getDate();
+        const ultimoDiaMes = new Date(competencia.getFullYear(), competencia.getMonth() + 1, 0).getDate();
+
+        return new Date(
+            competencia.getFullYear(),
+            competencia.getMonth(),
+            Math.min(diaVencimento, ultimoDiaMes),
+        );
+    }
+
+    normalizarCompetenciaMes(date: Date) {
+        return getStartOfMonth(date);
+    }
+
     async buscarGastoPorId(id: string) {
         try {
             return await prisma.gasto.findFirst({
@@ -287,6 +412,18 @@ class GastoRepository {
                     deletedAt: null,
                 },
                 include: {
+                    cartaoCredito: {
+                        include: {
+                            usuario: {
+                                select: {
+                                    id: true,
+                                    nome: true,
+                                    email: true,
+                                },
+                            },
+                        },
+                    },
+                    faturaCartao: true,
                     lancamentosBase: {
                         orderBy: { numeroParcela: "asc" },
                     },
@@ -308,6 +445,35 @@ class GastoRepository {
             });
         } catch (error) {
             throw createRepositoryError(error, "Nao foi possivel pagar o gasto.");
+        }
+    }
+
+    async reabrirGasto(id: string) {
+        try {
+            return await prisma.$transaction(async (transaction) => {
+                const gastoReaberto = await transaction.gasto.update({
+                    where: { id },
+                    data: {
+                        dataPagamento: null,
+                        status: "pendente",
+                    },
+                });
+
+                if ((gastoReaberto as any).origemLancamento === "parcelado") {
+                    await transaction.$executeRaw`
+                        UPDATE LancamentoBase
+                        SET
+                            dataPagamentoParcela = NULL,
+                            status = 'pendente',
+                            updatedAt = CURRENT_TIMESTAMP(3)
+                        WHERE gastoId = ${id}
+                    `;
+                }
+
+                return gastoReaberto;
+            });
+        } catch (error) {
+            throw createRepositoryError(error, "Nao foi possivel reabrir o gasto.");
         }
     }
 
@@ -348,6 +514,46 @@ class GastoRepository {
             return lancamentos[0] ?? null;
         } catch (error) {
             throw createRepositoryError(error, "Nao foi possivel buscar a parcela.");
+        }
+    }
+
+    async listarLancamentosBasePorGastoId(gastoId: string) {
+        try {
+            return await prisma.$queryRaw<Array<{
+                id: string;
+                gastoId: string;
+                valorParcela: number;
+                numeroParcela: number;
+                dataVencimentoParcela: Date;
+                faturaCartaoId: string | null;
+            }>>`
+                SELECT
+                    id,
+                    gastoId,
+                    valorParcela,
+                    numeroParcela,
+                    dataVencimentoParcela,
+                    faturaCartaoId
+                FROM LancamentoBase
+                WHERE gastoId = ${gastoId}
+                ORDER BY numeroParcela ASC
+            `;
+        } catch (error) {
+            throw createRepositoryError(error, "Nao foi possivel listar as parcelas do gasto.");
+        }
+    }
+
+    async vincularLancamentoBaseAFatura(lancamentoBaseId: string, faturaCartaoId: string) {
+        try {
+            await prisma.$executeRaw`
+                UPDATE LancamentoBase
+                SET
+                    faturaCartaoId = ${faturaCartaoId},
+                    updatedAt = CURRENT_TIMESTAMP(3)
+                WHERE id = ${lancamentoBaseId}
+            `;
+        } catch (error) {
+            throw createRepositoryError(error, "Nao foi possivel vincular a parcela a fatura do cartao.");
         }
     }
 

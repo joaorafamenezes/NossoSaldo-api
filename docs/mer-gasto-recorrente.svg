@@ -1,0 +1,153 @@
+<svg width="1400" height="900" viewBox="0 0 1400 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1400" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="0.55" stop-color="#EEF6F4"/>
+      <stop offset="1" stop-color="#FFF7ED"/>
+    </linearGradient>
+    <linearGradient id="main" x1="420" y1="140" x2="980" y2="760" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F766E"/>
+      <stop offset="1" stop-color="#164E63"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#0F172A" flood-opacity="0.13"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0F766E"/>
+    </marker>
+    <style>
+      .title { font: 800 38px Georgia, serif; fill: #0F172A; }
+      .subtitle { font: 500 18px Arial, sans-serif; fill: #475569; }
+      .box-title { font: 800 20px Arial, sans-serif; fill: #FFFFFF; letter-spacing: .02em; }
+      .box-subtitle { font: 700 13px Arial, sans-serif; fill: rgba(255,255,255,.78); letter-spacing: .11em; text-transform: uppercase; }
+      .field { font: 600 15px Arial, sans-serif; fill: #334155; }
+      .field-muted { font: 600 14px Arial, sans-serif; fill: #64748B; }
+      .pill { font: 800 13px Arial, sans-serif; fill: #0F766E; letter-spacing: .08em; }
+      .note-title { font: 800 18px Arial, sans-serif; fill: #0F172A; }
+      .note { font: 500 15px Arial, sans-serif; fill: #475569; }
+      .relationship { font: 800 14px Arial, sans-serif; fill: #0F766E; }
+      .example-title { font: 800 17px Arial, sans-serif; fill: #7C2D12; }
+      .example { font: 600 14px Arial, sans-serif; fill: #9A3412; }
+    </style>
+  </defs>
+
+  <rect width="1400" height="900" fill="url(#bg)"/>
+  <circle cx="110" cy="110" r="180" fill="#CCFBF1" opacity="0.45"/>
+  <circle cx="1250" cy="780" r="220" fill="#FED7AA" opacity="0.42"/>
+
+  <text x="80" y="80" class="title">MER simplificado: Gasto recorrente usando a propria tabela Gasto</text>
+  <text x="80" y="113" class="subtitle">A mesma entidade guarda o modelo da recorrencia e os lancamentos mensais gerados.</text>
+
+  <!-- Usuario -->
+  <g filter="url(#shadow)">
+    <rect x="80" y="185" width="280" height="190" rx="24" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <rect x="80" y="185" width="280" height="64" rx="24" fill="#0F766E"/>
+    <text x="110" y="214" class="box-subtitle">Tabela</text>
+    <text x="110" y="238" class="box-title">USUARIO</text>
+    <text x="110" y="285" class="field">id PK</text>
+    <text x="110" y="315" class="field">nome</text>
+    <text x="110" y="345" class="field">email</text>
+  </g>
+
+  <!-- Categoria -->
+  <g filter="url(#shadow)">
+    <rect x="80" y="525" width="280" height="170" rx="24" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <rect x="80" y="525" width="280" height="64" rx="24" fill="#164E63"/>
+    <text x="110" y="554" class="box-subtitle">Tabela</text>
+    <text x="110" y="578" class="box-title">CATEGORIA</text>
+    <text x="110" y="625" class="field">id PK</text>
+    <text x="110" y="655" class="field">descricao</text>
+  </g>
+
+  <!-- Gasto central -->
+  <g filter="url(#shadow)">
+    <rect x="455" y="155" width="490" height="610" rx="28" fill="#FFFFFF" stroke="#99F6E4" stroke-width="2"/>
+    <rect x="455" y="155" width="490" height="78" rx="28" fill="url(#main)"/>
+    <text x="490" y="190" class="box-subtitle">Tabela principal</text>
+    <text x="490" y="219" class="box-title">GASTO</text>
+
+    <rect x="490" y="258" width="420" height="34" rx="17" fill="#ECFDF5" stroke="#99F6E4"/>
+    <text x="512" y="280" class="pill">Registro modelo: recorrenciaPaiId = null</text>
+
+    <text x="500" y="330" class="field">id PK</text>
+    <text x="500" y="360" class="field">responsavelId FK - usuario dono</text>
+    <text x="500" y="390" class="field">categoriaId FK</text>
+    <text x="500" y="420" class="field">cartaoCreditoId FK opcional</text>
+    <text x="500" y="450" class="field">faturaCartaoId FK opcional</text>
+    <text x="500" y="480" class="field">recorrenciaPaiId FK opcional</text>
+    <text x="500" y="510" class="field">descricao, valor, status</text>
+    <text x="500" y="540" class="field">origemLancamento: unico | parcelado | recorrente</text>
+    <text x="500" y="570" class="field">competencia</text>
+    <text x="500" y="600" class="field">dataVencimento</text>
+    <text x="500" y="630" class="field">dataInicioRecorrencia opcional</text>
+    <text x="500" y="660" class="field">dataFimRecorrencia opcional</text>
+    <text x="500" y="690" class="field">recorrenciaAtiva opcional</text>
+    <text x="500" y="720" class="field">deletedAt opcional</text>
+  </g>
+
+  <!-- Cartao -->
+  <g filter="url(#shadow)">
+    <rect x="1040" y="185" width="280" height="220" rx="24" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <rect x="1040" y="185" width="280" height="64" rx="24" fill="#0F766E"/>
+    <text x="1070" y="214" class="box-subtitle">Tabela</text>
+    <text x="1070" y="238" class="box-title">CARTAO_CREDITO</text>
+    <text x="1070" y="285" class="field">id PK</text>
+    <text x="1070" y="315" class="field">usuarioId FK</text>
+    <text x="1070" y="345" class="field">descricao</text>
+    <text x="1070" y="375" class="field">valorLimite</text>
+  </g>
+
+  <!-- Fatura -->
+  <g filter="url(#shadow)">
+    <rect x="1040" y="505" width="280" height="230" rx="24" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <rect x="1040" y="505" width="280" height="64" rx="24" fill="#164E63"/>
+    <text x="1070" y="534" class="box-subtitle">Tabela</text>
+    <text x="1070" y="558" class="box-title">FATURA_CARTAO</text>
+    <text x="1070" y="605" class="field">id PK</text>
+    <text x="1070" y="635" class="field">cartaoCreditoId FK</text>
+    <text x="1070" y="665" class="field">competencia</text>
+    <text x="1070" y="695" class="field">valorTotal</text>
+    <text x="1070" y="725" class="field">status</text>
+  </g>
+
+  <!-- Relationships -->
+  <path d="M360 280 C400 280 410 360 455 360" stroke="#0F766E" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <text x="370" y="265" class="relationship">1 usuario possui N gastos</text>
+
+  <path d="M360 610 C405 610 410 390 455 390" stroke="#0F766E" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <text x="365" y="635" class="relationship">1 categoria classifica N gastos</text>
+
+  <path d="M945 420 C990 420 995 315 1040 315" stroke="#0F766E" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <text x="965" y="385" class="relationship">gasto pode usar cartao</text>
+
+  <path d="M945 450 C1000 450 1000 650 1040 650" stroke="#0F766E" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <text x="965" y="565" class="relationship">gasto pode cair em fatura</text>
+
+  <!-- Self relation loop -->
+  <path d="M700 765 C700 830 1030 830 1030 705 C1030 615 945 570 945 480" stroke="#F97316" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+  <rect x="645" y="800" width="440" height="42" rx="21" fill="#FFF7ED" stroke="#FDBA74"/>
+  <text x="670" y="826" class="example-title">Auto-relacionamento: um GASTO modelo gera outros GASTOS</text>
+
+  <!-- Example area -->
+  <g filter="url(#shadow)">
+    <rect x="455" y="790" width="490" height="78" rx="22" fill="#FFFFFF" stroke="#FDBA74"/>
+    <text x="485" y="819" class="example-title">Exemplo rapido</text>
+    <text x="485" y="844" class="example">Netflix modelo: recorrenciaPaiId = null, recorrenciaAtiva = true</text>
+    <text x="485" y="864" class="example">Netflix maio: recorrenciaPaiId = id do modelo, competencia = 2026-05</text>
+  </g>
+
+  <!-- Notes -->
+  <g>
+    <rect x="80" y="735" width="280" height="105" rx="22" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <text x="108" y="770" class="note-title">Regra de leitura</text>
+    <text x="108" y="800" class="note">recorrenciaPaiId vazio:</text>
+    <text x="108" y="823" class="note">e o modelo da assinatura</text>
+  </g>
+
+  <g>
+    <rect x="1040" y="755" width="280" height="105" rx="22" fill="#FFFFFF" stroke="#CBD5E1"/>
+    <text x="1068" y="790" class="note-title">Gasto mensal</text>
+    <text x="1068" y="820" class="note">recorrenciaPaiId preenchido:</text>
+    <text x="1068" y="843" class="note">e o lancamento gerado</text>
+  </g>
+</svg>
