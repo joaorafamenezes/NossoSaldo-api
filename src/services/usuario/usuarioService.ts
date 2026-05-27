@@ -57,7 +57,7 @@ class UsuarioService {
     });
 
     if (!isEmailVerificationRequired()) {
-      return await usuarioRepository.marcarEmailComoVerificado(usuarioCriado.id);
+      return usuarioCriado;
     }
 
     const token = randomBytes(32).toString("hex");
