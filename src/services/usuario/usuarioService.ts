@@ -14,6 +14,10 @@ import authorization from "../../secure/authorization";
 const passwordResetExpiresInMinutes = Number(process.env.PASSWORD_RESET_TOKEN_EXPIRES_MINUTES ?? "60");
 const emailVerificationExpiresInMinutes = Number(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRES_MINUTES ?? "1440");
 
+function isEmailVerificationRequired() {
+  return process.env.REQUIRE_EMAIL_VERIFICATION !== "false";
+}
+
 function hashResetToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -52,6 +56,10 @@ class UsuarioService {
       senha,
     });
 
+    if (!isEmailVerificationRequired()) {
+      return await usuarioRepository.marcarEmailComoVerificado(usuarioCriado.id);
+    }
+
     const token = randomBytes(32).toString("hex");
     const tokenHash = hashResetToken(token);
     const expiresAt = new Date(Date.now() + emailVerificationExpiresInMinutes * 60 * 1000);
@@ -83,7 +91,7 @@ class UsuarioService {
       return null;
     }
 
-    if (!usuario.emailVerifiedAt) {
+    if (isEmailVerificationRequired() && !usuario.emailVerifiedAt) {
       throw createHttpError(403, "Confirme seu email antes de acessar sua conta.");
     }
 
