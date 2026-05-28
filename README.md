@@ -25,33 +25,11 @@ npm run migrate:deploy   # aplica migrations em ambiente alvo
 npm run seed:dev         # popula dados de desenvolvimento
 ```
 
-## Variaveis de ambiente principais
-
-```env
-DATABASE_URL="mysql://user:password@localhost:3306/nossosaldo"
-APP_URL="http://localhost:3000"
-FRONTEND_URL="http://localhost:5173"
-FRONTEND_RESET_PASSWORD_URL="http://localhost:5173/redefinir-senha"
-FRONTEND_EMAIL_VERIFICATION_URL="http://localhost:5173/validar-email"
-JWT_EXPIRES="3600"
-PASSWORD_RESET_TOKEN_EXPIRES_MINUTES="60"
-EMAIL_VERIFICATION_TOKEN_EXPIRES_MINUTES="1440"
-REQUIRE_EMAIL_VERIFICATION="true"
-```
-
 ## Documentacao
 
 - Swagger UI: `/docs`
 - OpenAPI JSON: `/docs/openapi.json`
 - Fonte da especificacao: `src/docs/openapi.ts`
-
-## Autenticacao
-
-Rotas protegidas exigem token JWT no header:
-
-```http
-x-access-token: <token>
-```
 
 ## Regras de gastos
 
