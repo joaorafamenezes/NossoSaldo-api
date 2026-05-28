@@ -31,6 +31,8 @@ describe("OpenAPI docs", () => {
     expect(response.body.paths).toHaveProperty("/gastos/{id}");
     expect(response.body.paths["/gastos/{id}"]).toHaveProperty("patch");
     expect(response.body.paths["/gastos/{id}"]).toHaveProperty("delete");
+    expect(response.body.components.schemas.CreateGastoRequest.required).toContain("dataVencimento");
+    expect(response.body.components.schemas.CreateGastoRequest.properties.dataVencimento.description).toContain("obrigatoria");
   });
 
   it("should expose the Swagger UI page", async () => {

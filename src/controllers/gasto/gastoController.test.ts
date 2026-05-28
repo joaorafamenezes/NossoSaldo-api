@@ -68,6 +68,27 @@ describe("GastoController", () => {
     });
   });
 
+  it("should pass string filters when listing logged user gastos", async () => {
+    mockRequest.query = {
+      competencia: "2026-08",
+      de: "2026-08-01",
+      ate: "2026-08-31",
+    };
+    (gastoService.listarGastosPorResponsavelId as jest.Mock).mockResolvedValue([]);
+
+    await gastoController.listarGastosPorUsuarioLogado(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext,
+    );
+
+    expect(gastoService.listarGastosPorResponsavelId).toHaveBeenCalledWith("user-1", {
+      competencia: "2026-08",
+      de: "2026-08-01",
+      ate: "2026-08-31",
+    });
+  });
+
   it("should return gasto details by id", async () => {
     const gasto = { id: "gasto-1", descricao: "Mercado" };
     (gastoService.detalharGastoPorId as jest.Mock).mockResolvedValue(gasto);
@@ -117,6 +138,20 @@ describe("GastoController", () => {
     expect(mockResponse.json).toHaveBeenCalledWith({ data: gastoAtualizado });
   });
 
+  it("should update gasto using first id when params id is array", async () => {
+    mockRequest.params = { id: ["gasto-1", "gasto-2"] as unknown as string };
+    const gastoAtualizado = { id: "gasto-1" };
+    (gastoService.atualizarGasto as jest.Mock).mockResolvedValue(gastoAtualizado);
+
+    await gastoController.atualizarGasto(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext,
+    );
+
+    expect(gastoService.atualizarGasto).toHaveBeenCalledWith("gasto-1", mockRequest.body, "user-1");
+  });
+
   it("should pay gasto and return 200", async () => {
     mockRequest.body = { dataPagamento: new Date("2026-04-29T12:00:00.000Z") };
     const gastoPago = { id: "gasto-1", status: "pago" };
@@ -146,6 +181,36 @@ describe("GastoController", () => {
     expect(gastoService.deletarGasto).toHaveBeenCalledWith("gasto-1", "user-1");
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
     expect(mockResponse.json).toHaveBeenCalledWith({ data: resultado });
+  });
+
+  it("should reopen gasto and return 200", async () => {
+    const gastoReaberto = { id: "gasto-1", status: "pendente" };
+    (gastoService.reabrirGasto as jest.Mock).mockResolvedValue(gastoReaberto);
+
+    await gastoController.reabrirGasto(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext,
+    );
+
+    expect(gastoService.reabrirGasto).toHaveBeenCalledWith("gasto-1", "user-1");
+    expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: gastoReaberto });
+  });
+
+  it("should pay installment and return 200", async () => {
+    const parcelaPaga = { id: "parcela-1", status: "pago" };
+    (gastoService.pagarParcela as jest.Mock).mockResolvedValue(parcelaPaga);
+
+    await gastoController.pagarParcela(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext,
+    );
+
+    expect(gastoService.pagarParcela).toHaveBeenCalledWith("gasto-1", mockRequest.body, "user-1");
+    expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: parcelaPaga });
   });
 
   it("should call next when service throws during update", async () => {

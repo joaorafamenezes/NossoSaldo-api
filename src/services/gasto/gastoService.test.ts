@@ -19,6 +19,8 @@ jest.mock("../../repositories/gasto/gastoRepository", () => ({
     calcularDataVencimentoRecorrente: jest.fn(),
     pagarGasto: jest.fn(),
     reabrirGasto: jest.fn(),
+    buscarLancamentoBasePorId: jest.fn(),
+    pagarLancamentoBase: jest.fn(),
     listarLancamentosBasePorGastoId: jest.fn(),
     vincularLancamentoBaseAFatura: jest.fn(),
   },
@@ -648,6 +650,73 @@ describe("GastoService", () => {
       });
 
       await expect(gastoService.deletarGasto("gasto-1", "user-1")).rejects.toMatchObject({
+        statusCode: 403,
+      });
+    });
+
+    it("should recalculate linked invoices when deleting credit card installments", async () => {
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue({
+        id: "gasto-1",
+        responsavelId: "user-1",
+        origemLancamento: "parcelado",
+        faturaCartaoId: "fatura-principal",
+      });
+      (gastoRepository.listarLancamentosBasePorGastoId as jest.Mock).mockResolvedValue([
+        { id: "parcela-1", faturaCartaoId: "fatura-1" },
+        { id: "parcela-2", faturaCartaoId: "fatura-2" },
+      ]);
+
+      await gastoService.deletarGasto("gasto-1", "user-1");
+
+      expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fatura-principal");
+      expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fatura-1");
+      expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fatura-2");
+    });
+  });
+
+  describe("pagarParcela", () => {
+    it("should pay an installment", async () => {
+      const paymentDate = new Date("2026-08-17T00:00:00.000Z");
+      const paidInstallment = { id: "parcela-1", status: "pago" };
+      (gastoRepository.buscarLancamentoBasePorId as jest.Mock).mockResolvedValue({
+        id: "parcela-1",
+        status: "pendente",
+        responsavelId: "user-1",
+      });
+      (gastoRepository.pagarLancamentoBase as jest.Mock).mockResolvedValue(paidInstallment);
+
+      await expect(gastoService.pagarParcela("parcela-1", { dataPagamento: paymentDate }, "user-1")).resolves.toEqual(paidInstallment);
+      expect(gastoRepository.pagarLancamentoBase).toHaveBeenCalledWith("parcela-1", paymentDate);
+    });
+
+    it("should throw 404 when installment does not exist", async () => {
+      (gastoRepository.buscarLancamentoBasePorId as jest.Mock).mockResolvedValue(null);
+
+      await expect(gastoService.pagarParcela("parcela-1", {}, "user-1")).rejects.toMatchObject({
+        statusCode: 404,
+      });
+    });
+
+    it("should throw 400 when installment is already paid", async () => {
+      (gastoRepository.buscarLancamentoBasePorId as jest.Mock).mockResolvedValue({
+        id: "parcela-1",
+        status: "pago",
+        responsavelId: "user-1",
+      });
+
+      await expect(gastoService.pagarParcela("parcela-1", {}, "user-1")).rejects.toMatchObject({
+        statusCode: 400,
+      });
+    });
+
+    it("should throw 403 when installment belongs to another user", async () => {
+      (gastoRepository.buscarLancamentoBasePorId as jest.Mock).mockResolvedValue({
+        id: "parcela-1",
+        status: "pendente",
+        responsavelId: "user-2",
+      });
+
+      await expect(gastoService.pagarParcela("parcela-1", {}, "user-1")).rejects.toMatchObject({
         statusCode: 403,
       });
     });

@@ -36,15 +36,9 @@ const createGastoSchema = joi.object({
     competencia: joi.date().optional().allow(null).messages({
         'date.base': 'A competencia deve ser uma data valida.',
     }),
-    dataVencimento: joi.when('origemLancamento', {
-        is: joi.valid('parcelado', 'recorrente'),
-        then: joi.date().required().messages({
-            'date.base': 'A data de vencimento deve ser uma data valida.',
-            'any.required': 'A data de vencimento e obrigatoria para lancamentos parcelados ou recorrentes.',
-        }),
-        otherwise: joi.date().optional().allow(null).messages({
-            'date.base': 'A data de vencimento deve ser uma data valida.',
-        }),
+    dataVencimento: joi.date().required().messages({
+        'date.base': 'A data de vencimento deve ser uma data valida.',
+        'any.required': 'A data de vencimento e obrigatoria para cadastrar um gasto.',
     }),
     dataPagamento: joi.date().optional().allow(null).messages({
         'date.base': 'A data de pagamento deve ser uma data valida.',

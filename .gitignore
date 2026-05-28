@@ -3,6 +3,7 @@ dist
 .env
 keys/private.key
 coverage
+.jest-cache
 logs
 *.log
 .DS_Store

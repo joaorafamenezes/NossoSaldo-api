@@ -16,6 +16,8 @@ jest.mock("../../secure/autentication");
 jest.mock("../../secure/authorization");
 
 describe("UsuarioService", () => {
+  const originalRequireEmailVerification = process.env.REQUIRE_EMAIL_VERIFICATION;
+
   const mockUsuarioData: iCriarUsuarioSchema = {
     nome: "Joao Silva",
     email: "joao@example.com",
@@ -43,8 +45,18 @@ describe("UsuarioService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.REQUIRE_EMAIL_VERIFICATION;
     (autentication.hasPassword as jest.Mock).mockReturnValue("senha-criptografada");
     (autentication.checkPassword as jest.Mock).mockReturnValue(false);
+  });
+
+  afterAll(() => {
+    if (originalRequireEmailVerification === undefined) {
+      delete process.env.REQUIRE_EMAIL_VERIFICATION;
+      return;
+    }
+
+    process.env.REQUIRE_EMAIL_VERIFICATION = originalRequireEmailVerification;
   });
 
   it("should create a user successfully when email does not exist", async () => {

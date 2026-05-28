@@ -343,6 +343,32 @@ describe("UsuarioController", () => {
     );
   });
 
+  it("should forward 500 when frontend reset URL is not configured", async () => {
+    const originalUrl = process.env.FRONTEND_RESET_PASSWORD_URL;
+    delete process.env.FRONTEND_RESET_PASSWORD_URL;
+    mockRequest.query = { token: "token-valido" };
+    (usuarioService.validarTokenRecuperacaoSenha as jest.Mock).mockResolvedValue(true);
+
+    await usuarioControler.validarTokenRecuperacaoSenha(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext as NextFunction,
+    );
+
+    expect(mockNext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 500,
+        message: "URL de redefinicao de senha nao configurada.",
+      }),
+    );
+
+    if (originalUrl === undefined) {
+      delete process.env.FRONTEND_RESET_PASSWORD_URL;
+    } else {
+      process.env.FRONTEND_RESET_PASSWORD_URL = originalUrl;
+    }
+  });
+
   it("should reset password with token and return 200", async () => {
     mockRequest.body = { token: "token-valido", senha: "novaSenha123" };
     (usuarioService.redefinirSenhaComToken as jest.Mock).mockResolvedValue(true);
@@ -355,5 +381,21 @@ describe("UsuarioController", () => {
 
     expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
     expect(mockResponse.json).toHaveBeenCalledWith({ data: { message: "Senha redefinida com sucesso" } });
+  });
+
+  it("should validate email and return 200", async () => {
+    const resultado = { message: "Email verificado com sucesso." };
+    mockRequest.body = { token: "email-token" };
+    (usuarioService.validarEmail as jest.Mock).mockResolvedValue(resultado);
+
+    await usuarioControler.validarEmail(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext as NextFunction,
+    );
+
+    expect(usuarioService.validarEmail).toHaveBeenCalledWith("email-token");
+    expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: resultado });
   });
 });

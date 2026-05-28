@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-    <title>Code coverage report for src/routers/mainRouter.ts</title>
+    <title>Code coverage report for src/routers/mainrouter.ts</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../../prettify.css" />
     <link rel="stylesheet" href="../../base.css" />
@@ -19,13 +19,13 @@
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/routers</a> mainRouter.ts</h1>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/routers</a> mainrouter.ts</h1>
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">94.11% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>16/17</span>
+                <span class='fraction'>19/19</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">50% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>1/2</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">94.11% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>16/17</span>
+                <span class='fraction'>19/19</span>
             </div>
         
             
@@ -89,34 +89,26 @@
 <a name='L24'></a><a href='#L24'>24</a>
 <a name='L25'></a><a href='#L25'>25</a>
 <a name='L26'></a><a href='#L26'>26</a>
-<a name='L27'></a><a href='#L27'>27</a>
-<a name='L28'></a><a href='#L28'>28</a>
-<a name='L29'></a><a href='#L29'>29</a>
-<a name='L30'></a><a href='#L30'>30</a>
-<a name='L31'></a><a href='#L31'>31</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L27'></a><a href='#L27'>27</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
@@ -124,33 +116,29 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Router } from "express";
-import type { Request, Response } from "express";
-import authorization from "../secure/authorization";
-import { categoriaRouter } from "./categoria/categoriaRouter";
+import { usuarioRouter } from "./usuario/usuarioRouter";
 import { contaConjuntaRouter } from "./contaConjunta/contaConjuntaRouter";
 import { gastoRouter } from "./gasto/gastoRouter";
-import { usuarioRouter } from "./usuario/usuarioRouter";
+import { relatorioRouter } from "./relatorio/relatorioRouter";
+import { categoriaRouter } from "./categoria/categoriaRouter";
+import { cartaoCreditoRouter } from "./cartaoCredito/cartaoCreditoRouter";
+import { faturaCartaoRouter } from "./faturaCartao/faturaCartaoRouter";
 &nbsp;
 const router = Router();
-const appBootedAt = new Date().toISOString();
 &nbsp;
-router.get("/health", (_req: Request, res: Response) =&gt; {
-    res.json({ message: "API 'NossoSaldo' estÃƒÂ¡ funcionando corretamente" });
-});
-&nbsp;
-router.get("/debug/jwt", <span class="fstat-no" title="function not covered" >(_</span>req: Request, res: Response) =&gt; {
-<span class="cstat-no" title="statement not covered" >    res.json({</span>
-        pid: process.pid,
-        bootedAt: appBootedAt,
-        cwd: process.cwd(),
-        ...authorization.getJwtDiagnostics(),
+router.get("/health", (_req, res) =&gt; {
+    res.status(200).json({
+        message: "API 'NossoSaldo' funcionando corretamente.",
     });
 });
 &nbsp;
 router.use(usuarioRouter);
-router.use(categoriaRouter);
 router.use(contaConjuntaRouter);
 router.use(gastoRouter);
+router.use(relatorioRouter);
+router.use(categoriaRouter);
+router.use(cartaoCreditoRouter);
+router.use(faturaCartaoRouter);
 &nbsp;
 export { router };
 &nbsp;</pre></td></tr></table></pre>
@@ -160,7 +148,7 @@ export { router };
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-29T16:43:18.624Z
+                at 2026-05-28T21:19:44.049Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
