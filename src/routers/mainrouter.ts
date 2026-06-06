@@ -6,6 +6,7 @@ import { relatorioRouter } from "./relatorio/relatorioRouter";
 import { categoriaRouter } from "./categoria/categoriaRouter";
 import { cartaoCreditoRouter } from "./cartaoCredito/cartaoCreditoRouter";
 import { faturaCartaoRouter } from "./faturaCartao/faturaCartaoRouter";
+import { insightsRouter } from "./insights/insightsRouter";
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use(relatorioRouter);
 router.use(categoriaRouter);
 router.use(cartaoCreditoRouter);
 router.use(faturaCartaoRouter);
+router.use(insightsRouter);
 
 export { router };

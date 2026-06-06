@@ -2,9 +2,9 @@ import { NextFunction, Request, Response } from "express";
 import Joi from "joi";
 import { createValidationError } from "../../errors/httpError";
 
-function validateCreateUser<TSchema>(schema: Joi.ObjectSchema<TSchema>) {
+function validateSource<TSchema>(schema: Joi.ObjectSchema<TSchema>, source: "body" | "params" | "query") {
   return (req: Request, _res: Response, next: NextFunction) => {
-    const { error, value } = schema.validate(req.body, {
+    const { error, value } = schema.validate(req[source], {
       abortEarly: false,
       stripUnknown: true,
     });
@@ -14,15 +14,23 @@ function validateCreateUser<TSchema>(schema: Joi.ObjectSchema<TSchema>) {
       return next(createValidationError(errorMessages));
     }
 
-    req.body = value;
+    req[source] = value;
 
     return next();
   };
 }
 
+function validateCreateUser<TSchema>(schema: Joi.ObjectSchema<TSchema>) {
+  return validateSource(schema, "body");
+}
+
 const validateUser = validateCreateUser;
+const validateParams = <TSchema>(schema: Joi.ObjectSchema<TSchema>) => validateSource(schema, "params");
+const validateQuery = <TSchema>(schema: Joi.ObjectSchema<TSchema>) => validateSource(schema, "query");
 
 export {
   validateCreateUser,
+  validateParams,
+  validateQuery,
   validateUser,
 };
