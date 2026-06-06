@@ -20,10 +20,32 @@ npm run build            # compila TypeScript
 npm start                # executa dist/server.js
 npm test                 # roda a suite Jest
 npm test -- --coverage   # roda testes com cobertura
-npm run db:ensure        # garante banco local configurado
+npm run db:ensure:local  # garante banco local configurado
+npm run migrate:dev      # cria/aplica migration no ambiente local
 npm run migrate:deploy   # aplica migrations em ambiente alvo
+npm run migrate:status   # mostra status das migrations
 npm run seed:dev         # popula dados de desenvolvimento
 ```
+
+## Ambientes
+
+- O arquivo `.env` e apenas para desenvolvimento local e nao deve ser versionado.
+- Homologacao e producao devem receber `DATABASE_URL` e demais secrets fora do Git.
+- O schema Prisma e o mesmo em todos os ambientes; o que muda e somente a configuracao do ambiente.
+
+Fluxo recomendado:
+
+1. Em desenvolvimento local, configure `.env` com o banco local.
+2. Gere migrations com `npm run migrate:dev`.
+3. Versione a pasta `prisma/migrations`.
+4. Em homologacao, publique a aplicacao com `DATABASE_URL` apontando para o banco HMG e rode `npm run migrate:deploy`.
+5. Depois de validar, publique a mesma versao em producao com `DATABASE_URL` de PROD e rode `npm run migrate:deploy`.
+
+Exemplo de bancos por ambiente:
+
+- DEV: `nossosaldo-dev`
+- HMG: `nossosaldo-hmg`
+- PROD: `nossosaldo-prod`
 
 ## Documentacao
 
