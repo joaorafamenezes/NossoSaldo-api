@@ -1,4 +1,4 @@
-const serverUrl = process.env.APP_URL ?? "http://localhost:3000";
+const serverUrl = process.env.APP_URL ?? "http://localhost:10000";
 
 export const openApiSpec = {
   openapi: "3.0.3",
