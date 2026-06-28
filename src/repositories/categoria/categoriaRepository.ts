@@ -1,39 +1,19 @@
 import { PrismaClient } from "@prisma/client";
-import { randomUUID } from "crypto";
 import { createRepositoryError } from "../../errors/httpError";
+import { prisma as defaultPrisma } from "../../lib/prisma";
+import { CategoriaRepositoryPort } from "../../ports/outbound/categoriaRepositoryPort";
 
-const prisma = new PrismaClient();
+export class PrismaCategoriaRepository implements CategoriaRepositoryPort {
+  constructor(private readonly prisma: PrismaClient = defaultPrisma) {}
 
-type CriarCategoriaInput = {
-  descricao: string;
-  iconName: string;
-};
-
-type CategoriaRow = {
-  id: string;
-  descricao: string;
-  iconName: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-class CategoriaRepository {
-  async criarCategoria(categoria: CriarCategoriaInput) {
+  async criarCategoria(categoria: { descricao: string; iconName: string }) {
     try {
-      const id = randomUUID();
-
-      await prisma.$executeRaw`
-        INSERT INTO Categoria (id, descricao, iconName, createdAt, updatedAt)
-        VALUES (${id}, ${categoria.descricao}, ${categoria.iconName}, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))
-      `;
-
-      const [categoriaCriada] = await prisma.$queryRaw<CategoriaRow[]>`
-        SELECT id, descricao, iconName, createdAt, updatedAt
-        FROM Categoria
-        WHERE id = ${id}
-      `;
-
-      return categoriaCriada;
+      return await this.prisma.categoria.create({
+        data: {
+          descricao: categoria.descricao,
+          iconName: categoria.iconName,
+        },
+      });
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel criar a categoria.");
     }
@@ -41,15 +21,13 @@ class CategoriaRepository {
 
   async buscarTodasCategorias() {
     try {
-      return await prisma.$queryRaw<CategoriaRow[]>`
-        SELECT id, descricao, iconName, createdAt, updatedAt
-        FROM Categoria
-        ORDER BY createdAt DESC
-      `;
+      return await this.prisma.categoria.findMany({
+        orderBy: { createdAt: "desc" },
+      });
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel listar as categorias.");
     }
   }
 }
 
-export const categoriaRepository = new CategoriaRepository();
+export const categoriaRepository = new PrismaCategoriaRepository();

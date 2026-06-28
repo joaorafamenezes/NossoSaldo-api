@@ -2,14 +2,17 @@ import { createHash, randomBytes } from "crypto";
 import createHttpError from "http-errors";
 import iRedefinirSenhaComToken from "../../@types/usuario/iRedefinirSenhaComToken";
 import iSolicitarResetSenha from "../../@types/usuario/iSolicitarResetSenha";
-import { usuarioRepository } from "../../repositories/usuario/usuarioRepository";
-import { passwordResetTokenRepository } from "../../repositories/usuario/passwordResetTokenRepository";
-import { emailVerificationTokenRepository } from "../../repositories/usuario/emailVerificationTokenRepository";
 import iCriarUsuario from "../../@types/usuario/iCriarUsuario";
+import iLogin from "../../@types/iLogin";
 import { mailer } from "../../lib/mailer";
 import autentication from "../../secure/autentication";
-import iLogin from "../../@types/iLogin";
 import authorization from "../../secure/authorization";
+import { emailVerificationTokenRepository } from "../../repositories/usuario/emailVerificationTokenRepository";
+import { passwordResetTokenRepository } from "../../repositories/usuario/passwordResetTokenRepository";
+import { usuarioRepository } from "../../repositories/usuario/usuarioRepository";
+import { EmailVerificationTokenRepositoryPort } from "../../ports/outbound/emailVerificationTokenRepositoryPort";
+import { PasswordResetTokenRepositoryPort } from "../../ports/outbound/passwordResetTokenRepositoryPort";
+import { UsuarioRepositoryPort } from "../../ports/outbound/usuarioRepositoryPort";
 
 const passwordResetExpiresInMinutes = Number(process.env.PASSWORD_RESET_TOKEN_EXPIRES_MINUTES ?? "60");
 const emailVerificationExpiresInMinutes = Number(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRES_MINUTES ?? "1440");
@@ -26,7 +29,6 @@ function buildPasswordResetValidationUrl(token: string) {
   const frontendResetPasswordUrl = process.env.FRONTEND_RESET_PASSWORD_URL ?? "http://localhost:5173/redefinir-senha";
   const redirectUrl = new URL(frontendResetPasswordUrl);
   redirectUrl.searchParams.set("token", token);
-
   return redirectUrl.toString();
 }
 
@@ -34,25 +36,27 @@ function buildEmailVerificationUrl(token: string) {
   const frontendEmailVerificationUrl = process.env.FRONTEND_EMAIL_VERIFICATION_URL ?? "http://localhost:5173/validar-email";
   const redirectUrl = new URL(frontendEmailVerificationUrl);
   redirectUrl.searchParams.set("token", token);
-
   return redirectUrl.toString();
 }
 
-class UsuarioService {
-  async criarUsuario(data: iCriarUsuario) {
-    const nome = data.nome;
-    const email = data.email;
-    const senha = autentication.hasPassword(data.senha);
+export class UsuarioService {
+  constructor(
+    private readonly usuarioRepository: UsuarioRepositoryPort,
+    private readonly passwordResetTokenRepository: PasswordResetTokenRepositoryPort,
+    private readonly emailVerificationTokenRepository: EmailVerificationTokenRepositoryPort,
+  ) {}
 
-    const usuarioExiste = await usuarioRepository.buscarUsuarioPorEmail(email);
+  async criarUsuario(data: iCriarUsuario) {
+    const senha = autentication.hasPassword(data.senha);
+    const usuarioExiste = await this.usuarioRepository.buscarUsuarioPorEmail(data.email);
 
     if (usuarioExiste) {
-      throw createHttpError(409, "UsuÃ¡rio jÃ¡ existe com esse email no banco de dados.");
+      throw createHttpError(409, "Usuario ja existe com esse email no banco de dados.");
     }
 
-    const usuarioCriado = await usuarioRepository.criarUsuario({
-      nome,
-      email,
+    const usuarioCriado = await this.usuarioRepository.criarUsuario({
+      nome: data.nome,
+      email: data.email,
       senha,
     });
 
@@ -64,12 +68,8 @@ class UsuarioService {
     const tokenHash = hashResetToken(token);
     const expiresAt = new Date(Date.now() + emailVerificationExpiresInMinutes * 60 * 1000);
 
-    await emailVerificationTokenRepository.invalidarTokensAtivosPorUsuarioId(usuarioCriado.id);
-    await emailVerificationTokenRepository.criarToken({
-      tokenHash,
-      usuarioId: usuarioCriado.id,
-      expiresAt,
-    });
+    await this.emailVerificationTokenRepository.invalidarTokensAtivosPorUsuarioId(usuarioCriado.id);
+    await this.emailVerificationTokenRepository.criarToken({ tokenHash, usuarioId: usuarioCriado.id, expiresAt });
 
     await mailer.sendEmailVerificationEmail({
       to: usuarioCriado.email,
@@ -82,10 +82,7 @@ class UsuarioService {
   }
 
   async login(data: iLogin) {
-    const email = data.email;
-    const senha = data.senha;
-
-    const usuario = await usuarioRepository.buscarUsuarioPorEmail(email);
+    const usuario = await this.usuarioRepository.buscarUsuarioPorEmail(data.email);
 
     if (!usuario) {
       return null;
@@ -95,81 +92,71 @@ class UsuarioService {
       throw createHttpError(403, "Confirme seu email antes de acessar sua conta.");
     }
 
-    if (autentication.checkPassword(senha, usuario.senha)) {
-      const token = await authorization.sign(usuario.id);
-
-      if (!token) {
-        throw createHttpError(500, "NÃ£o foi possÃ­vel gerar o token.");
-      }
-
-      return { token };
+    if (!autentication.checkPassword(data.senha, usuario.senha)) {
+      return null;
     }
 
-    return null;
+    const token = await authorization.sign(usuario.id);
+
+    if (!token) {
+      throw createHttpError(500, "Nao foi possivel gerar o token.");
+    }
+
+    return { token };
   }
 
   async listarUsuarios() {
-    return await usuarioRepository.listarUsuarios();
+    return await this.usuarioRepository.listarUsuarios();
   }
 
   async listarUsuarioPorId(id: string) {
-    return await usuarioRepository.listarUsuarioPorId(id);
+    return await this.usuarioRepository.listarUsuarioPorId(id);
   }
 
   async atualizaUsuario(id: string, dadosAtualizados: Partial<iCriarUsuario>) {
     try {
-      return await usuarioRepository.atualizaUsuario(id, dadosAtualizados);
-    } catch (error) {
-      throw createHttpError(500, "NÃ£o foi possÃ­vel atualizar o usuÃ¡rio.");
+      return await this.usuarioRepository.atualizaUsuario(id, dadosAtualizados);
+    } catch {
+      throw createHttpError(500, "Nao foi possivel atualizar o usuario.");
     }
   }
 
   async atualizaSenhaUsuario(id: string, novaSenha: string) {
     try {
-      const senhaAtual = await usuarioRepository.buscarSenhaUsuario(id);
+      const senhaAtual = await this.usuarioRepository.buscarSenhaUsuario(id);
 
       if (!senhaAtual) {
         throw createHttpError(404, "Usuario nao encontrado.");
       }
 
-      const mesmaSenha = autentication.checkPassword(novaSenha, senhaAtual);
-
-      if (mesmaSenha) {
+      if (autentication.checkPassword(novaSenha, senhaAtual)) {
         throw createHttpError(400, "A nova senha deve ser diferente da senha atual.");
       }
 
-      const senhaHash = autentication.hasPassword(novaSenha);
-      await usuarioRepository.atualizaSenhaUsuario(id, senhaHash);
-
+      await this.usuarioRepository.atualizaSenhaUsuario(id, autentication.hasPassword(novaSenha));
       return true;
     } catch (error: any) {
       if (error.status) {
         throw error;
       }
 
-      throw createHttpError(500, "NÃ£o foi possÃ­vel atualizar a senha do usuÃ¡rio.");
+      throw createHttpError(500, "Nao foi possivel atualizar a senha do usuario.");
     }
   }
 
   async solicitarRecuperacaoSenha(data: iSolicitarResetSenha) {
-    const usuario = await usuarioRepository.buscarUsuarioPorEmail(data.email);
+    const usuario = await this.usuarioRepository.buscarUsuarioPorEmail(data.email);
 
     if (!usuario) {
-      return {
-        message: "Se o email informado existir, enviaremos um link para redefinicao de senha.",
-      };
+      return { message: "Se o email informado existir, enviaremos um link para redefinicao de senha." };
     }
 
     const token = randomBytes(32).toString("hex");
     const tokenHash = hashResetToken(token);
     const expiresAt = new Date(Date.now() + passwordResetExpiresInMinutes * 60 * 1000);
 
-    await passwordResetTokenRepository.invalidarTokensAtivosPorUsuarioId(usuario.id);
-    await passwordResetTokenRepository.criarToken({
-      tokenHash,
-      usuarioId: usuario.id,
-      expiresAt,
-    });
+    await this.passwordResetTokenRepository.invalidarTokensAtivosPorUsuarioId(usuario.id);
+    await this.passwordResetTokenRepository.criarToken({ tokenHash, usuarioId: usuario.id, expiresAt });
 
     await mailer.sendPasswordResetEmail({
       to: usuario.email,
@@ -178,14 +165,11 @@ class UsuarioService {
       expiresInMinutes: passwordResetExpiresInMinutes,
     });
 
-    return {
-      message: "Se o email informado existir, enviaremos um link para redefinicao de senha.",
-    };
+    return { message: "Se o email informado existir, enviaremos um link para redefinicao de senha." };
   }
 
   async validarTokenRecuperacaoSenha(token: string) {
-    const tokenHash = hashResetToken(token);
-    const registro = await passwordResetTokenRepository.buscarTokenValidoPorHash(tokenHash);
+    const registro = await this.passwordResetTokenRepository.buscarTokenValidoPorHash(hashResetToken(token));
 
     if (!registro) {
       throw createHttpError(400, "Token de recuperacao invalido ou expirado.");
@@ -195,35 +179,34 @@ class UsuarioService {
   }
 
   async validarEmail(token: string) {
-    const tokenHash = hashResetToken(token);
-    const registro = await emailVerificationTokenRepository.buscarTokenValidoPorHash(tokenHash);
+    const registro = await this.emailVerificationTokenRepository.buscarTokenValidoPorHash(hashResetToken(token));
 
     if (!registro) {
       throw createHttpError(400, "Token de verificacao de email invalido ou expirado.");
     }
 
-    const usuario = await usuarioRepository.marcarEmailComoVerificado(registro.usuarioId);
-    await emailVerificationTokenRepository.marcarTokenComoUsado(registro.id);
+    const usuario = await this.usuarioRepository.marcarEmailComoVerificado(registro.usuarioId);
+    await this.emailVerificationTokenRepository.marcarTokenComoUsado(registro.id);
 
-    return {
-      message: "Email verificado com sucesso.",
-      usuario,
-    };
+    return { message: "Email verificado com sucesso.", usuario };
   }
 
   async redefinirSenhaComToken(data: iRedefinirSenhaComToken) {
-    const tokenHash = hashResetToken(data.token);
-    const registro = await passwordResetTokenRepository.buscarTokenValidoPorHash(tokenHash);
+    const registro = await this.passwordResetTokenRepository.buscarTokenValidoPorHash(hashResetToken(data.token));
 
     if (!registro) {
       throw createHttpError(400, "Token de recuperacao invalido ou expirado.");
     }
 
     await this.atualizaSenhaUsuario(registro.usuarioId, data.senha);
-    await passwordResetTokenRepository.marcarTokenComoUsado(registro.id);
+    await this.passwordResetTokenRepository.marcarTokenComoUsado(registro.id);
 
     return true;
   }
 }
 
-export const usuarioService = new UsuarioService();
+export const usuarioService = new UsuarioService(
+  usuarioRepository,
+  passwordResetTokenRepository,
+  emailVerificationTokenRepository,
+);

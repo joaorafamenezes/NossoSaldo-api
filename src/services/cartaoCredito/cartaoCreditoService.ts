@@ -1,22 +1,25 @@
+import createHttpError from "http-errors";
 import iCriarCartaoCredito from "../../@types/cartaoCredito/iCriarCartaoCredito";
 import { cartaoCreditoRepository } from "../../repositories/cartaoCredito/cartaoCreditoRepository";
-import createHttpError from "http-errors";
+import { CartaoCreditoRepositoryPort } from "../../ports/outbound/cartaoCreditoRepositoryPort";
 
-class CartaoCreditoService {
+export class CartaoCreditoService {
+  constructor(private readonly cartaoCreditoRepository: CartaoCreditoRepositoryPort) {}
+
   async criarCartaoCredito(usuarioId: string, data: iCriarCartaoCredito) {
-    return await cartaoCreditoRepository.criarCartaoCredito(usuarioId, data);
+    return await this.cartaoCreditoRepository.criarCartaoCredito(usuarioId, data);
   }
 
   async listarCartoesCreditoPorUsuario(usuarioId: string) {
-    return await cartaoCreditoRepository.listarCartoesCreditoPorUsuario(usuarioId);
+    return await this.cartaoCreditoRepository.listarCartoesCreditoPorUsuario(usuarioId);
   }
 
   async buscarCartaoCreditoPorId(id: string) {
-    return await cartaoCreditoRepository.buscarCartaoCreditoPorId(id);
+    return await this.cartaoCreditoRepository.buscarCartaoCreditoPorId(id);
   }
 
   async atualizarCartaoCredito(id: string, usuarioId: string, data: iCriarCartaoCredito) {
-    const cartao = await cartaoCreditoRepository.buscarCartaoCreditoPorId(id);
+    const cartao = await this.cartaoCreditoRepository.buscarCartaoCreditoPorId(id);
 
     if (!cartao) {
       throw createHttpError(404, "Cartao de credito nao encontrado.");
@@ -26,8 +29,8 @@ class CartaoCreditoService {
       throw createHttpError(403, "Usuario nao autorizado a atualizar este cartao de credito.");
     }
 
-    return await cartaoCreditoRepository.atualizarCartaoCredito(id, data);
+    return await this.cartaoCreditoRepository.atualizarCartaoCredito(id, data);
   }
 }
 
-export const cartaoCreditoService = new CartaoCreditoService();
+export const cartaoCreditoService = new CartaoCreditoService(cartaoCreditoRepository);

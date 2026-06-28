@@ -1,43 +1,24 @@
 import { PrismaClient } from "@prisma/client";
-import { randomUUID } from "crypto";
 import { createRepositoryError } from "../../errors/httpError";
 import iCriarCartaoCredito from "../../@types/cartaoCredito/iCriarCartaoCredito";
+import { prisma as defaultPrisma } from "../../lib/prisma";
+import { CartaoCreditoRepositoryPort } from "../../ports/outbound/cartaoCreditoRepositoryPort";
 
-const prisma = new PrismaClient();
+export class PrismaCartaoCreditoRepository implements CartaoCreditoRepositoryPort {
+  constructor(private readonly prisma: PrismaClient = defaultPrisma) {}
 
-type CartaoCreditoRow = {
-  id: string;
-  descricao: string;
-  diaFechamento: number;
-  diaVencimento: number;
-  valorLimite: number;
-  observacoes: string | null;
-  usuarioId: string;
-  usuarioNome?: string;
-  usuarioEmail?: string;
-  origemCartao?: "proprio" | "conta_conjunta";
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-class CartaoCreditoRepository {
   async criarCartaoCredito(usuarioId: string, cartao: iCriarCartaoCredito) {
     try {
-      const id = randomUUID();
-      const observacoes = cartao.observacoes?.trim() || null;
-
-      await prisma.$executeRaw`
-        INSERT INTO CartaoCredito (id, descricao, diaFechamento, diaVencimento, valorLimite, observacoes, usuarioId, createdAt, updatedAt)
-        VALUES (${id}, ${cartao.descricao}, ${cartao.diaFechamento}, ${cartao.diaVencimento}, ${cartao.valorLimite}, ${observacoes}, ${usuarioId}, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))
-      `;
-
-      const [cartaoCriado] = await prisma.$queryRaw<CartaoCreditoRow[]>`
-        SELECT id, descricao, diaFechamento, diaVencimento, valorLimite, observacoes, usuarioId, createdAt, updatedAt
-        FROM CartaoCredito
-        WHERE id = ${id}
-      `;
-
-      return cartaoCriado;
+      return await this.prisma.cartaoCredito.create({
+        data: {
+          descricao: cartao.descricao,
+          diaFechamento: cartao.diaFechamento,
+          diaVencimento: cartao.diaVencimento,
+          valorLimite: cartao.valorLimite,
+          observacoes: cartao.observacoes?.trim() || null,
+          usuarioId,
+        },
+      });
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel criar o cartao de credito.");
     }
@@ -45,38 +26,46 @@ class CartaoCreditoRepository {
 
   async listarCartoesCreditoPorUsuario(usuarioId: string) {
     try {
-      return await prisma.$queryRaw<CartaoCreditoRow[]>`
-        SELECT
-          cartao.id,
-          cartao.descricao,
-          cartao.diaFechamento,
-          cartao.diaVencimento,
-          cartao.valorLimite,
-          cartao.observacoes,
-          cartao.usuarioId,
-          usuario.nome AS usuarioNome,
-          usuario.email AS usuarioEmail,
-          CASE
-            WHEN cartao.usuarioId = ${usuarioId} THEN 'proprio'
-            ELSE 'conta_conjunta'
-          END AS origemCartao,
-          cartao.createdAt,
-          cartao.updatedAt
-        FROM CartaoCredito cartao
-        INNER JOIN Usuario usuario ON usuario.id = cartao.usuarioId
-        WHERE cartao.usuarioId = ${usuarioId}
-          OR cartao.usuarioId IN (
-            SELECT
-              CASE
-                WHEN conta.usuario1Id = ${usuarioId} THEN conta.usuario2Id
-                ELSE conta.usuario1Id
-              END
-            FROM ContaConjunta conta
-            WHERE conta.deletedAt IS NULL
-              AND (conta.usuario1Id = ${usuarioId} OR conta.usuario2Id = ${usuarioId})
-          )
-        ORDER BY origemCartao ASC, cartao.createdAt DESC
-      `;
+      const contasConjuntas = await this.prisma.contaConjunta.findMany({
+        where: {
+          deletedAt: null,
+          OR: [{ usuario1Id: usuarioId }, { usuario2Id: usuarioId }],
+        },
+        select: {
+          usuario1Id: true,
+          usuario2Id: true,
+        },
+      });
+
+      const usuariosPermitidos = new Set<string>([usuarioId]);
+
+      for (const conta of contasConjuntas) {
+        usuariosPermitidos.add(conta.usuario1Id === usuarioId ? conta.usuario2Id : conta.usuario1Id);
+      }
+
+      const cartoes = await this.prisma.cartaoCredito.findMany({
+        where: {
+          usuarioId: {
+            in: Array.from(usuariosPermitidos),
+          },
+        },
+        include: {
+          usuario: {
+            select: { nome: true, email: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return cartoes
+        .map((cartao) => ({
+          ...cartao,
+          valorLimite: Number(cartao.valorLimite),
+          usuarioNome: cartao.usuario.nome,
+          usuarioEmail: cartao.usuario.email,
+          origemCartao: cartao.usuarioId === usuarioId ? "proprio" : "conta_conjunta",
+        }))
+        .sort((primeiro, segundo) => primeiro.origemCartao.localeCompare(segundo.origemCartao));
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel listar os cartoes de credito.");
     }
@@ -84,14 +73,11 @@ class CartaoCreditoRepository {
 
   async buscarCartaoCreditoPorId(id: string) {
     try {
-      const [cartao] = await prisma.$queryRaw<CartaoCreditoRow[]>`
-        SELECT id, descricao, diaFechamento, diaVencimento, valorLimite, observacoes, usuarioId, createdAt, updatedAt
-        FROM CartaoCredito
-        WHERE id = ${id}
-        LIMIT 1
-      `;
+      const cartao = await this.prisma.cartaoCredito.findUnique({
+        where: { id },
+      });
 
-      return cartao ?? null;
+      return cartao ? { ...cartao, valorLimite: Number(cartao.valorLimite) } : null;
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel buscar o cartao de credito.");
     }
@@ -99,32 +85,25 @@ class CartaoCreditoRepository {
 
   async atualizarCartaoCredito(id: string, cartao: iCriarCartaoCredito) {
     try {
-      const observacoes = cartao.observacoes?.trim() || null;
+      const atualizado = await this.prisma.cartaoCredito.update({
+        where: { id },
+        data: {
+          descricao: cartao.descricao,
+          diaFechamento: cartao.diaFechamento,
+          diaVencimento: cartao.diaVencimento,
+          valorLimite: cartao.valorLimite,
+          observacoes: cartao.observacoes?.trim() || null,
+        },
+      });
 
-      await prisma.$executeRaw`
-        UPDATE CartaoCredito
-        SET
-          descricao = ${cartao.descricao},
-          diaFechamento = ${cartao.diaFechamento},
-          diaVencimento = ${cartao.diaVencimento},
-          valorLimite = ${cartao.valorLimite},
-          observacoes = ${observacoes},
-          updatedAt = CURRENT_TIMESTAMP(3)
-        WHERE id = ${id}
-      `;
-
-      const [cartaoAtualizado] = await prisma.$queryRaw<CartaoCreditoRow[]>`
-        SELECT id, descricao, diaFechamento, diaVencimento, valorLimite, observacoes, usuarioId, createdAt, updatedAt
-        FROM CartaoCredito
-        WHERE id = ${id}
-        LIMIT 1
-      `;
-
-      return cartaoAtualizado ?? null;
+      return {
+        ...atualizado,
+        valorLimite: Number(atualizado.valorLimite),
+      };
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel atualizar o cartao de credito.");
     }
   }
 }
 
-export const cartaoCreditoRepository = new CartaoCreditoRepository();
+export const cartaoCreditoRepository = new PrismaCartaoCreditoRepository();

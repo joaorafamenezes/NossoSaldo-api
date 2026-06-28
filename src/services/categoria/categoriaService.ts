@@ -1,14 +1,17 @@
-import { categoriaRepository } from "../../repositories/categoria/categoriaRepository";
 import iCriarCategoria from "../../@types/categoria/iCriarCategoria";
+import { categoriaRepository } from "../../repositories/categoria/categoriaRepository";
+import { CategoriaRepositoryPort } from "../../ports/outbound/categoriaRepositoryPort";
 
-class CategoriaService {
-    async criarCategoria(data: iCriarCategoria) {
-        return await categoriaRepository.criarCategoria(data);
-    }
+export class CategoriaService {
+  constructor(private readonly categoriaRepository: CategoriaRepositoryPort) {}
 
-    async buscarTodasCategorias() {
-        return await categoriaRepository.buscarTodasCategorias();
-    }
+  async criarCategoria(data: iCriarCategoria) {
+    return await this.categoriaRepository.criarCategoria(data);
+  }
+
+  async buscarTodasCategorias() {
+    return await this.categoriaRepository.buscarTodasCategorias();
+  }
 }
 
-export const categoriaService = new CategoriaService();
+export const categoriaService = new CategoriaService(categoriaRepository);

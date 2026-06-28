@@ -1,5 +1,6 @@
 import { gastoService } from "../gasto/gastoService";
-import { InsightExpenseRow, insightsRepository } from "../../repositories/insights/insightsRepository";
+import { insightsRepository } from "../../repositories/insights/insightsRepository";
+import { InsightExpenseRow } from "../../ports/outbound/insightsRepositoryPort";
 
 type InsightGargalo = {
   codigo: string;

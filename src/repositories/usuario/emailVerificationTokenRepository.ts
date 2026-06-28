@@ -1,35 +1,23 @@
 import { randomUUID } from "crypto";
 import { PrismaClient } from "@prisma/client";
 import { createRepositoryError } from "../../errors/httpError";
+import { prisma as defaultPrisma } from "../../lib/prisma";
+import {
+  CriarEmailVerificationTokenInput,
+  EmailVerificationTokenRepositoryPort,
+} from "../../ports/outbound/emailVerificationTokenRepositoryPort";
 
-const prisma = new PrismaClient();
+export class PrismaEmailVerificationTokenRepository implements EmailVerificationTokenRepositoryPort {
+  constructor(private readonly prisma: PrismaClient = defaultPrisma) {}
 
-type CriarEmailVerificationTokenInput = {
-  tokenHash: string;
-  usuarioId: string;
-  expiresAt: Date;
-};
-
-type EmailVerificationTokenRecord = {
-  id: string;
-  tokenHash: string;
-  usuarioId: string;
-  expiresAt: Date;
-  usedAt: Date | null;
-  createdAt: Date;
-};
-
-class EmailVerificationTokenRepository {
   async invalidarTokensAtivosPorUsuarioId(usuarioId: string) {
     try {
-      const usedAt = new Date();
-      const count = await prisma.$executeRaw`
-        UPDATE EmailVerificationToken
-        SET usedAt = ${usedAt}
-        WHERE usuarioId = ${usuarioId} AND usedAt IS NULL
-      `;
+      const result = await this.prisma.emailVerificationToken.updateMany({
+        where: { usuarioId, usedAt: null },
+        data: { usedAt: new Date() },
+      });
 
-      return { count: Number(count) };
+      return { count: result.count };
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel invalidar os tokens de verificacao de email.");
     }
@@ -37,20 +25,14 @@ class EmailVerificationTokenRepository {
 
   async criarToken(input: CriarEmailVerificationTokenInput) {
     try {
-      const id = randomUUID();
-      const createdAt = new Date();
-
-      await prisma.$executeRaw`
-        INSERT INTO EmailVerificationToken (id, tokenHash, usuarioId, expiresAt, createdAt)
-        VALUES (${id}, ${input.tokenHash}, ${input.usuarioId}, ${input.expiresAt}, ${createdAt})
-      `;
-
-      return {
-        id,
-        ...input,
-        usedAt: null,
-        createdAt,
-      };
+      return await this.prisma.emailVerificationToken.create({
+        data: {
+          id: randomUUID(),
+          tokenHash: input.tokenHash,
+          usuarioId: input.usuarioId,
+          expiresAt: input.expiresAt,
+        },
+      });
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel criar o token de verificacao de email.");
     }
@@ -58,16 +40,13 @@ class EmailVerificationTokenRepository {
 
   async buscarTokenValidoPorHash(tokenHash: string, referencia = new Date()) {
     try {
-      const registros = await prisma.$queryRaw<EmailVerificationTokenRecord[]>`
-        SELECT id, tokenHash, usuarioId, expiresAt, usedAt, createdAt
-        FROM EmailVerificationToken
-        WHERE tokenHash = ${tokenHash}
-          AND usedAt IS NULL
-          AND expiresAt > ${referencia}
-        LIMIT 1
-      `;
-
-      return registros[0] ?? null;
+      return await this.prisma.emailVerificationToken.findFirst({
+        where: {
+          tokenHash,
+          usedAt: null,
+          expiresAt: { gt: referencia },
+        },
+      });
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel validar o token de verificacao de email.");
     }
@@ -76,12 +55,10 @@ class EmailVerificationTokenRepository {
   async marcarTokenComoUsado(id: string) {
     try {
       const usedAt = new Date();
-
-      await prisma.$executeRaw`
-        UPDATE EmailVerificationToken
-        SET usedAt = ${usedAt}
-        WHERE id = ${id}
-      `;
+      await this.prisma.emailVerificationToken.update({
+        where: { id },
+        data: { usedAt },
+      });
 
       return { id, usedAt };
     } catch (error) {
@@ -90,4 +67,4 @@ class EmailVerificationTokenRepository {
   }
 }
 
-export const emailVerificationTokenRepository = new EmailVerificationTokenRepository();
+export const emailVerificationTokenRepository = new PrismaEmailVerificationTokenRepository();

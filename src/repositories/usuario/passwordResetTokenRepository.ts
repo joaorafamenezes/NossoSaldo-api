@@ -1,35 +1,23 @@
 import { randomUUID } from "crypto";
 import { PrismaClient } from "@prisma/client";
 import { createRepositoryError } from "../../errors/httpError";
+import { prisma as defaultPrisma } from "../../lib/prisma";
+import {
+  CriarPasswordResetTokenInput,
+  PasswordResetTokenRepositoryPort,
+} from "../../ports/outbound/passwordResetTokenRepositoryPort";
 
-const prisma = new PrismaClient();
+export class PrismaPasswordResetTokenRepository implements PasswordResetTokenRepositoryPort {
+  constructor(private readonly prisma: PrismaClient = defaultPrisma) {}
 
-type CriarPasswordResetTokenInput = {
-  tokenHash: string;
-  usuarioId: string;
-  expiresAt: Date;
-};
-
-type PasswordResetTokenRecord = {
-  id: string;
-  tokenHash: string;
-  usuarioId: string;
-  expiresAt: Date;
-  usedAt: Date | null;
-  createdAt: Date;
-};
-
-class PasswordResetTokenRepository {
   async invalidarTokensAtivosPorUsuarioId(usuarioId: string) {
     try {
-      const usedAt = new Date();
-      const count = await prisma.$executeRaw`
-        UPDATE PasswordResetToken
-        SET usedAt = ${usedAt}
-        WHERE usuarioId = ${usuarioId} AND usedAt IS NULL
-      `;
+      const result = await this.prisma.passwordResetToken.updateMany({
+        where: { usuarioId, usedAt: null },
+        data: { usedAt: new Date() },
+      });
 
-      return { count: Number(count) };
+      return { count: result.count };
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel invalidar os tokens de recuperacao.");
     }
@@ -37,20 +25,14 @@ class PasswordResetTokenRepository {
 
   async criarToken(input: CriarPasswordResetTokenInput) {
     try {
-      const id = randomUUID();
-      const createdAt = new Date();
-
-      await prisma.$executeRaw`
-        INSERT INTO PasswordResetToken (id, tokenHash, usuarioId, expiresAt, createdAt)
-        VALUES (${id}, ${input.tokenHash}, ${input.usuarioId}, ${input.expiresAt}, ${createdAt})
-      `;
-
-      return {
-        id,
-        ...input,
-        usedAt: null,
-        createdAt,
-      };
+      return await this.prisma.passwordResetToken.create({
+        data: {
+          id: randomUUID(),
+          tokenHash: input.tokenHash,
+          usuarioId: input.usuarioId,
+          expiresAt: input.expiresAt,
+        },
+      });
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel criar o token de recuperacao.");
     }
@@ -58,16 +40,13 @@ class PasswordResetTokenRepository {
 
   async buscarTokenValidoPorHash(tokenHash: string, referencia = new Date()) {
     try {
-      const registros = await prisma.$queryRaw<PasswordResetTokenRecord[]>`
-        SELECT id, tokenHash, usuarioId, expiresAt, usedAt, createdAt
-        FROM PasswordResetToken
-        WHERE tokenHash = ${tokenHash}
-          AND usedAt IS NULL
-          AND expiresAt > ${referencia}
-        LIMIT 1
-      `;
-
-      return registros[0] ?? null;
+      return await this.prisma.passwordResetToken.findFirst({
+        where: {
+          tokenHash,
+          usedAt: null,
+          expiresAt: { gt: referencia },
+        },
+      });
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel validar o token de recuperacao.");
     }
@@ -76,12 +55,10 @@ class PasswordResetTokenRepository {
   async marcarTokenComoUsado(id: string) {
     try {
       const usedAt = new Date();
-
-      await prisma.$executeRaw`
-        UPDATE PasswordResetToken
-        SET usedAt = ${usedAt}
-        WHERE id = ${id}
-      `;
+      await this.prisma.passwordResetToken.update({
+        where: { id },
+        data: { usedAt },
+      });
 
       return { id, usedAt };
     } catch (error) {
@@ -90,4 +67,4 @@ class PasswordResetTokenRepository {
   }
 }
 
-export const passwordResetTokenRepository = new PasswordResetTokenRepository();
+export const passwordResetTokenRepository = new PrismaPasswordResetTokenRepository();

@@ -218,6 +218,11 @@ class GastoService {
 
         for (const modelo of modelos) {
             const dataInicio = modelo.dataInicioRecorrencia ?? modelo.dataVencimento;
+
+            if (!dataInicio || !modelo.dataVencimento) {
+                continue;
+            }
+
             const inicioRecorrenciaMes = this.getInicioMes(new Date(dataInicio));
 
             if (inicioRecorrenciaMes >= inicioMes) {
@@ -248,10 +253,10 @@ class GastoService {
                 valor: Number(modelo.valor),
                 competencia: inicioMes,
                 dataVencimento,
-                observacao: modelo.observacao,
+                observacao: modelo.observacao ?? undefined,
                 categoriaId: modelo.categoriaId,
                 responsavelId: modelo.responsavelId,
-                cartaoCreditoId: modelo.cartaoCreditoId,
+                cartaoCreditoId: modelo.cartaoCreditoId ?? undefined,
                 recorrenciaPaiId: modelo.id,
             };
 

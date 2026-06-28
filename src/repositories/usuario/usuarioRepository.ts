@@ -1,38 +1,37 @@
 import { PrismaClient } from "@prisma/client";
 import { createRepositoryError } from "../../errors/httpError";
+import { prisma as defaultPrisma } from "../../lib/prisma";
+import {
+  CriarUsuarioRepositoryInput,
+  UsuarioRepositoryPort,
+} from "../../ports/outbound/usuarioRepositoryPort";
 
-const prisma = new PrismaClient();
+export class PrismaUsuarioRepository implements UsuarioRepositoryPort {
+  constructor(private readonly prisma: PrismaClient = defaultPrisma) {}
 
-type CriarUsuarioInput = {
-  nome: string;
-  email: string;
-  senha: string;
-};
-
-class UsuarioRepository {
   async buscarUsuarioPorEmail(email: string) {
     try {
-      return await prisma.usuario.findUnique({
+      return await this.prisma.usuario.findUnique({
         where: { email },
       });
     } catch (error) {
-      throw createRepositoryError(error, "Não foi possível buscar o usuário por email.");
+      throw createRepositoryError(error, "Nao foi possivel buscar o usuario por email.");
     }
   }
 
-  async criarUsuario(usuario: CriarUsuarioInput) {
+  async criarUsuario(usuario: CriarUsuarioRepositoryInput) {
     try {
-      return await prisma.usuario.create({
+      return await this.prisma.usuario.create({
         data: usuario,
       });
     } catch (error) {
-      throw createRepositoryError(error, "Não foi possível criar o usuário.");
+      throw createRepositoryError(error, "Nao foi possivel criar o usuario.");
     }
   }
 
   async listarUsuarios() {
     try {
-      return await prisma.usuario.findMany({
+      return await this.prisma.usuario.findMany({
         select: {
           id: true,
           nome: true,
@@ -43,13 +42,13 @@ class UsuarioRepository {
         },
       });
     } catch (error) {
-      throw createRepositoryError(error, "Não foi possível listar os usuários.");
+      throw createRepositoryError(error, "Nao foi possivel listar os usuarios.");
     }
   }
 
   async listarUsuarioPorId(id: string) {
     try {
-      return await prisma.usuario.findUnique({
+      return await this.prisma.usuario.findUnique({
         where: { id },
         select: {
           id: true,
@@ -61,13 +60,13 @@ class UsuarioRepository {
         },
       });
     } catch (error) {
-      throw createRepositoryError(error, "Não foi possível buscar o usuário.");
+      throw createRepositoryError(error, "Nao foi possivel buscar o usuario.");
     }
   }
 
-  async atualizaUsuario(id: string, dadosAtualizados: Partial<CriarUsuarioInput>) {
+  async atualizaUsuario(id: string, dadosAtualizados: Partial<CriarUsuarioRepositoryInput>) {
     try {
-      return await prisma.usuario.update({
+      return await this.prisma.usuario.update({
         where: { id },
         data: dadosAtualizados,
         select: {
@@ -80,52 +79,43 @@ class UsuarioRepository {
         },
       });
     } catch (error) {
-      throw createRepositoryError(error, "Não foi possível atualizar o usuário.");
+      throw createRepositoryError(error, "Nao foi possivel atualizar o usuario.");
     }
   }
 
   async atualizaSenhaUsuario(id: string, novaSenha: string) {
     try {
-      const atualizaSenha = await prisma.usuario.update({
+      return await this.prisma.usuario.update({
         where: { id },
         data: { senha: novaSenha },
       });
-
-      if (!atualizaSenha) {
-        throw createRepositoryError(null, "Usuário não encontrado para atualizar a senha.");
-      }
-
-      return atualizaSenha;
-
     } catch (error) {
-      throw createRepositoryError(error, "Não foi possível atualizar a senha do usuário.");
-    }    
+      throw createRepositoryError(error, "Nao foi possivel atualizar a senha do usuario.");
+    }
   }
 
   async buscarSenhaUsuario(id: string) {
     try {
-      const usuario = await prisma.usuario.findUnique({
+      const usuario = await this.prisma.usuario.findUnique({
         where: { id },
         select: { senha: true },
       });
 
       if (!usuario) {
-        throw createRepositoryError(null, "Usuário não encontrado.");
+        throw createRepositoryError(null, "Usuario nao encontrado.");
       }
 
       return usuario.senha;
     } catch (error) {
-      throw createRepositoryError(error, "Não foi possível buscar a senha do usuário.");
+      throw createRepositoryError(error, "Nao foi possivel buscar a senha do usuario.");
     }
   }
 
   async marcarEmailComoVerificado(id: string) {
     try {
-      const emailVerifiedAt = new Date();
-
-      return await prisma.usuario.update({
+      return await this.prisma.usuario.update({
         where: { id },
-        data: { emailVerifiedAt },
+        data: { emailVerifiedAt: new Date() },
         select: {
           id: true,
           nome: true,
@@ -141,4 +131,4 @@ class UsuarioRepository {
   }
 }
 
-export const usuarioRepository = new UsuarioRepository();
+export const usuarioRepository = new PrismaUsuarioRepository();

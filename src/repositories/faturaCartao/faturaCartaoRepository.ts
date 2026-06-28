@@ -1,36 +1,7 @@
 import { PrismaClient } from "@prisma/client";
-import { randomUUID } from "crypto";
 import { createRepositoryError } from "../../errors/httpError";
-
-const prisma = new PrismaClient();
-
-type CartaoFaturaInput = {
-  id: string;
-  diaFechamento: number;
-  diaVencimento: number;
-};
-
-type FaturaCartaoRow = {
-  id: string;
-  cartaoCreditoId: string;
-  cartaoDescricao?: string;
-  cartaoValorLimite?: number;
-  cartaoUsuarioId?: string;
-  cartaoUsuarioNome?: string;
-  cartaoUsuarioEmail?: string;
-  origemCartao?: "proprio" | "conta_conjunta";
-  competencia: string;
-  dataAbertura: Date;
-  dataFechamento: Date;
-  dataVencimento: Date;
-  valorTotal: number;
-  status: "aberta" | "fechada" | "paga" | "vencida" | "cancelada";
-  dataPagamento: Date | null;
-  observacoes: string | null;
-  totalGastos?: number;
-  createdAt: Date;
-  updatedAt: Date;
-};
+import { prisma as defaultPrisma } from "../../lib/prisma";
+import { CartaoFaturaInput, FaturaCartaoRepositoryPort } from "../../ports/outbound/faturaCartaoRepositoryPort";
 
 function getLastDayOfMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -50,127 +21,83 @@ function formatCompetencia(date: Date) {
 }
 
 function calcularPeriodoFatura(cartao: CartaoFaturaInput, dataReferencia: Date) {
-  const referencia = new Date(
-    dataReferencia.getFullYear(),
-    dataReferencia.getMonth(),
-    dataReferencia.getDate(),
-  );
+  const referencia = new Date(dataReferencia.getFullYear(), dataReferencia.getMonth(), dataReferencia.getDate());
   const mesCompetencia = referencia.getDate() <= cartao.diaFechamento
     ? new Date(referencia.getFullYear(), referencia.getMonth(), 1)
     : addMonths(referencia, 1);
 
-  const dataFechamento = createDateKeepingMonth(
-    mesCompetencia.getFullYear(),
-    mesCompetencia.getMonth(),
-    cartao.diaFechamento,
-  );
-  const mesVencimento = cartao.diaVencimento > cartao.diaFechamento
-    ? mesCompetencia
-    : addMonths(mesCompetencia, 1);
-  const dataVencimento = createDateKeepingMonth(
-    mesVencimento.getFullYear(),
-    mesVencimento.getMonth(),
-    cartao.diaVencimento,
-  );
-  const fechamentoAnterior = createDateKeepingMonth(
-    mesCompetencia.getFullYear(),
-    mesCompetencia.getMonth() - 1,
-    cartao.diaFechamento,
-  );
+  const dataFechamento = createDateKeepingMonth(mesCompetencia.getFullYear(), mesCompetencia.getMonth(), cartao.diaFechamento);
+  const mesVencimento = cartao.diaVencimento > cartao.diaFechamento ? mesCompetencia : addMonths(mesCompetencia, 1);
+  const dataVencimento = createDateKeepingMonth(mesVencimento.getFullYear(), mesVencimento.getMonth(), cartao.diaVencimento);
+  const fechamentoAnterior = createDateKeepingMonth(mesCompetencia.getFullYear(), mesCompetencia.getMonth() - 1, cartao.diaFechamento);
   const dataAbertura = new Date(fechamentoAnterior);
   dataAbertura.setDate(dataAbertura.getDate() + 1);
 
-  return {
-    competencia: formatCompetencia(mesCompetencia),
-    dataAbertura,
-    dataFechamento,
-    dataVencimento,
-  };
+  return { competencia: formatCompetencia(mesCompetencia), dataAbertura, dataFechamento, dataVencimento };
 }
 
 function calcularPeriodoFaturaPorCompetencia(cartao: CartaoFaturaInput, competenciaReferencia: Date) {
-  const mesCompetencia = new Date(
-    competenciaReferencia.getFullYear(),
-    competenciaReferencia.getMonth(),
-    1,
-  );
-
-  const dataFechamento = createDateKeepingMonth(
-    mesCompetencia.getFullYear(),
-    mesCompetencia.getMonth(),
-    cartao.diaFechamento,
-  );
-  const mesVencimento = cartao.diaVencimento > cartao.diaFechamento
-    ? mesCompetencia
-    : addMonths(mesCompetencia, 1);
-  const dataVencimento = createDateKeepingMonth(
-    mesVencimento.getFullYear(),
-    mesVencimento.getMonth(),
-    cartao.diaVencimento,
-  );
-  const fechamentoAnterior = createDateKeepingMonth(
-    mesCompetencia.getFullYear(),
-    mesCompetencia.getMonth() - 1,
-    cartao.diaFechamento,
-  );
+  const mesCompetencia = new Date(competenciaReferencia.getFullYear(), competenciaReferencia.getMonth(), 1);
+  const dataFechamento = createDateKeepingMonth(mesCompetencia.getFullYear(), mesCompetencia.getMonth(), cartao.diaFechamento);
+  const mesVencimento = cartao.diaVencimento > cartao.diaFechamento ? mesCompetencia : addMonths(mesCompetencia, 1);
+  const dataVencimento = createDateKeepingMonth(mesVencimento.getFullYear(), mesVencimento.getMonth(), cartao.diaVencimento);
+  const fechamentoAnterior = createDateKeepingMonth(mesCompetencia.getFullYear(), mesCompetencia.getMonth() - 1, cartao.diaFechamento);
   const dataAbertura = new Date(fechamentoAnterior);
   dataAbertura.setDate(dataAbertura.getDate() + 1);
 
-  return {
-    competencia: formatCompetencia(mesCompetencia),
-    dataAbertura,
-    dataFechamento,
-    dataVencimento,
-  };
+  return { competencia: formatCompetencia(mesCompetencia), dataAbertura, dataFechamento, dataVencimento };
 }
 
-class FaturaCartaoRepository {
+async function listarUsuariosPermitidos(prisma: PrismaClient, usuarioId: string) {
+  const contas = await prisma.contaConjunta.findMany({
+    where: { deletedAt: null, OR: [{ usuario1Id: usuarioId }, { usuario2Id: usuarioId }] },
+    select: { usuario1Id: true, usuario2Id: true },
+  });
+
+  const ids = new Set<string>([usuarioId]);
+  for (const conta of contas) {
+    ids.add(conta.usuario1Id === usuarioId ? conta.usuario2Id : conta.usuario1Id);
+  }
+
+  return Array.from(ids);
+}
+
+export class PrismaFaturaCartaoRepository implements FaturaCartaoRepositoryPort {
+  constructor(private readonly prisma: PrismaClient = defaultPrisma) {}
+
   async buscarFaturaPorIdParaUsuario(faturaId: string, usuarioId: string) {
     try {
-      const [fatura] = await prisma.$queryRaw<FaturaCartaoRow[]>`
-        SELECT
-          fatura.id,
-          fatura.cartaoCreditoId,
-          cartao.descricao AS cartaoDescricao,
-          cartao.valorLimite AS cartaoValorLimite,
-          usuario.id AS cartaoUsuarioId,
-          usuario.nome AS cartaoUsuarioNome,
-          usuario.email AS cartaoUsuarioEmail,
-          CASE
-            WHEN cartao.usuarioId = ${usuarioId} THEN 'proprio'
-            ELSE 'conta_conjunta'
-          END AS origemCartao,
-          fatura.competencia,
-          fatura.dataAbertura,
-          fatura.dataFechamento,
-          fatura.dataVencimento,
-          fatura.valorTotal,
-          fatura.status,
-          fatura.dataPagamento,
-          fatura.observacoes,
-          fatura.createdAt,
-          fatura.updatedAt
-        FROM FaturaCartao fatura
-        INNER JOIN CartaoCredito cartao ON cartao.id = fatura.cartaoCreditoId
-        INNER JOIN Usuario usuario ON usuario.id = cartao.usuarioId
-        WHERE fatura.id = ${faturaId}
-          AND (
-            cartao.usuarioId = ${usuarioId}
-            OR cartao.usuarioId IN (
-              SELECT
-                CASE
-                  WHEN conta.usuario1Id = ${usuarioId} THEN conta.usuario2Id
-                  ELSE conta.usuario1Id
-                END
-              FROM ContaConjunta conta
-              WHERE conta.deletedAt IS NULL
-                AND (conta.usuario1Id = ${usuarioId} OR conta.usuario2Id = ${usuarioId})
-            )
-          )
-        LIMIT 1
-      `;
+      const usuariosPermitidos = await listarUsuariosPermitidos(this.prisma, usuarioId);
+      const fatura = await this.prisma.faturaCartao.findFirst({
+        where: {
+          id: faturaId,
+          cartaoCredito: {
+            usuarioId: { in: usuariosPermitidos },
+          },
+        },
+        include: {
+          cartaoCredito: {
+            include: {
+              usuario: { select: { id: true, nome: true, email: true } },
+            },
+          },
+        },
+      });
 
-      return fatura ?? null;
+      if (!fatura) {
+        return null;
+      }
+
+      return {
+        ...fatura,
+        valorTotal: Number(fatura.valorTotal),
+        cartaoDescricao: fatura.cartaoCredito.descricao,
+        cartaoValorLimite: Number(fatura.cartaoCredito.valorLimite),
+        cartaoUsuarioId: fatura.cartaoCredito.usuario.id,
+        cartaoUsuarioNome: fatura.cartaoCredito.usuario.nome,
+        cartaoUsuarioEmail: fatura.cartaoCredito.usuario.email,
+        origemCartao: fatura.cartaoCredito.usuarioId === usuarioId ? "proprio" : "conta_conjunta",
+      };
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel buscar a fatura do cartao.");
     }
@@ -178,156 +105,46 @@ class FaturaCartaoRepository {
 
   async listarFaturasPorUsuario(usuarioId: string, cartaoCreditoId?: string) {
     try {
-      const cartaoFilter = cartaoCreditoId
-        ? prisma.$queryRaw<FaturaCartaoRow[]>`
-          SELECT
-            fatura.id,
-            fatura.cartaoCreditoId,
-            cartao.descricao AS cartaoDescricao,
-            cartao.valorLimite AS cartaoValorLimite,
-            usuario.id AS cartaoUsuarioId,
-            usuario.nome AS cartaoUsuarioNome,
-            usuario.email AS cartaoUsuarioEmail,
-            CASE
-              WHEN cartao.usuarioId = ${usuarioId} THEN 'proprio'
-              ELSE 'conta_conjunta'
-            END AS origemCartao,
-            fatura.competencia,
-            fatura.dataAbertura,
-            fatura.dataFechamento,
-            fatura.dataVencimento,
-            fatura.valorTotal,
-            fatura.status,
-            fatura.dataPagamento,
-            fatura.observacoes,
-            (
-              SELECT COUNT(gastoUnico.id)
-              FROM Gasto gastoUnico
-              WHERE gastoUnico.faturaCartaoId = fatura.id
-                AND gastoUnico.deletedAt IS NULL
-            ) + (
-              SELECT COUNT(lancamento.id)
-              FROM LancamentoBase lancamento
-              INNER JOIN Gasto gastoParcelado ON gastoParcelado.id = lancamento.gastoId
-              WHERE lancamento.faturaCartaoId = fatura.id
-                AND gastoParcelado.deletedAt IS NULL
-            ) AS totalGastos,
-            fatura.createdAt,
-            fatura.updatedAt
-          FROM FaturaCartao fatura
-          INNER JOIN CartaoCredito cartao ON cartao.id = fatura.cartaoCreditoId
-          INNER JOIN Usuario usuario ON usuario.id = cartao.usuarioId
-          WHERE fatura.cartaoCreditoId = ${cartaoCreditoId}
-            AND (
-              cartao.usuarioId = ${usuarioId}
-              OR cartao.usuarioId IN (
-                SELECT
-                  CASE
-                    WHEN conta.usuario1Id = ${usuarioId} THEN conta.usuario2Id
-                    ELSE conta.usuario1Id
-                  END
-                FROM ContaConjunta conta
-                WHERE conta.deletedAt IS NULL
-                  AND (conta.usuario1Id = ${usuarioId} OR conta.usuario2Id = ${usuarioId})
-              )
-            )
-          GROUP BY
-            fatura.id,
-            fatura.cartaoCreditoId,
-            cartao.descricao,
-            cartao.valorLimite,
-            usuario.id,
-            usuario.nome,
-            usuario.email,
-            cartao.usuarioId,
-            fatura.competencia,
-            fatura.dataAbertura,
-            fatura.dataFechamento,
-            fatura.dataVencimento,
-            fatura.valorTotal,
-            fatura.status,
-            fatura.dataPagamento,
-            fatura.observacoes,
-            fatura.createdAt,
-            fatura.updatedAt
-          ORDER BY fatura.dataVencimento DESC
-        `
-        : prisma.$queryRaw<FaturaCartaoRow[]>`
-          SELECT
-            fatura.id,
-            fatura.cartaoCreditoId,
-            cartao.descricao AS cartaoDescricao,
-            cartao.valorLimite AS cartaoValorLimite,
-            usuario.id AS cartaoUsuarioId,
-            usuario.nome AS cartaoUsuarioNome,
-            usuario.email AS cartaoUsuarioEmail,
-            CASE
-              WHEN cartao.usuarioId = ${usuarioId} THEN 'proprio'
-              ELSE 'conta_conjunta'
-            END AS origemCartao,
-            fatura.competencia,
-            fatura.dataAbertura,
-            fatura.dataFechamento,
-            fatura.dataVencimento,
-            fatura.valorTotal,
-            fatura.status,
-            fatura.dataPagamento,
-            fatura.observacoes,
-            (
-              SELECT COUNT(gastoUnico.id)
-              FROM Gasto gastoUnico
-              WHERE gastoUnico.faturaCartaoId = fatura.id
-                AND gastoUnico.deletedAt IS NULL
-            ) + (
-              SELECT COUNT(lancamento.id)
-              FROM LancamentoBase lancamento
-              INNER JOIN Gasto gastoParcelado ON gastoParcelado.id = lancamento.gastoId
-              WHERE lancamento.faturaCartaoId = fatura.id
-                AND gastoParcelado.deletedAt IS NULL
-            ) AS totalGastos,
-            fatura.createdAt,
-            fatura.updatedAt
-          FROM FaturaCartao fatura
-          INNER JOIN CartaoCredito cartao ON cartao.id = fatura.cartaoCreditoId
-          INNER JOIN Usuario usuario ON usuario.id = cartao.usuarioId
-          WHERE cartao.usuarioId = ${usuarioId}
-            OR cartao.usuarioId IN (
-              SELECT
-                CASE
-                  WHEN conta.usuario1Id = ${usuarioId} THEN conta.usuario2Id
-                  ELSE conta.usuario1Id
-                END
-              FROM ContaConjunta conta
-              WHERE conta.deletedAt IS NULL
-                AND (conta.usuario1Id = ${usuarioId} OR conta.usuario2Id = ${usuarioId})
-            )
-          GROUP BY
-            fatura.id,
-            fatura.cartaoCreditoId,
-            cartao.descricao,
-            cartao.valorLimite,
-            usuario.id,
-            usuario.nome,
-            usuario.email,
-            cartao.usuarioId,
-            fatura.competencia,
-            fatura.dataAbertura,
-            fatura.dataFechamento,
-            fatura.dataVencimento,
-            fatura.valorTotal,
-            fatura.status,
-            fatura.dataPagamento,
-            fatura.observacoes,
-            fatura.createdAt,
-            fatura.updatedAt
-          ORDER BY fatura.dataVencimento DESC
-        `;
-
-      const faturas = await cartaoFilter;
+      const usuariosPermitidos = await listarUsuariosPermitidos(this.prisma, usuarioId);
+      const faturas = await this.prisma.faturaCartao.findMany({
+        where: {
+          ...(cartaoCreditoId ? { cartaoCreditoId } : {}),
+          cartaoCredito: {
+            usuarioId: { in: usuariosPermitidos },
+          },
+        },
+        include: {
+          cartaoCredito: {
+            include: {
+              usuario: { select: { id: true, nome: true, email: true } },
+            },
+          },
+          gastos: {
+            where: { deletedAt: null },
+            select: { id: true },
+          },
+          lancamentosBase: {
+            where: {
+              gasto: {
+                deletedAt: null,
+              },
+            },
+            select: { id: true },
+          },
+        },
+        orderBy: { dataVencimento: "desc" },
+      });
 
       return faturas.map((fatura) => ({
         ...fatura,
-        totalGastos: Number(fatura.totalGastos ?? 0),
+        valorTotal: Number(fatura.valorTotal),
+        cartaoDescricao: fatura.cartaoCredito.descricao,
+        cartaoValorLimite: Number(fatura.cartaoCredito.valorLimite),
+        cartaoUsuarioId: fatura.cartaoCredito.usuario.id,
+        cartaoUsuarioNome: fatura.cartaoCredito.usuario.nome,
+        cartaoUsuarioEmail: fatura.cartaoCredito.usuario.email,
+        origemCartao: fatura.cartaoCredito.usuarioId === usuarioId ? "proprio" : "conta_conjunta",
+        totalGastos: fatura.gastos.length + fatura.lancamentosBase.length,
       }));
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel listar as faturas do cartao.");
@@ -336,8 +153,7 @@ class FaturaCartaoRepository {
 
   async buscarOuCriarFatura(cartao: CartaoFaturaInput, dataReferencia: Date) {
     try {
-      const periodo = calcularPeriodoFatura(cartao, dataReferencia);
-      return await this.buscarOuCriarFaturaPorPeriodo(cartao, periodo);
+      return await this.buscarOuCriarFaturaPorPeriodo(cartao, calcularPeriodoFatura(cartao, dataReferencia));
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel buscar ou criar a fatura do cartao.");
     }
@@ -345,124 +161,68 @@ class FaturaCartaoRepository {
 
   async buscarOuCriarFaturaPorCompetencia(cartao: CartaoFaturaInput, competenciaReferencia: Date) {
     try {
-      const periodo = calcularPeriodoFaturaPorCompetencia(cartao, competenciaReferencia);
-      return await this.buscarOuCriarFaturaPorPeriodo(cartao, periodo);
+      return await this.buscarOuCriarFaturaPorPeriodo(cartao, calcularPeriodoFaturaPorCompetencia(cartao, competenciaReferencia));
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel buscar ou criar a fatura do cartao.");
     }
   }
 
-  private async buscarOuCriarFaturaPorPeriodo(
-    cartao: CartaoFaturaInput,
-    periodo: ReturnType<typeof calcularPeriodoFatura>,
-  ) {
-    try {
-      const id = randomUUID();
+  private async buscarOuCriarFaturaPorPeriodo(cartao: CartaoFaturaInput, periodo: ReturnType<typeof calcularPeriodoFatura>) {
+    const fatura = await this.prisma.faturaCartao.upsert({
+      where: {
+        cartaoCreditoId_competencia: {
+          cartaoCreditoId: cartao.id,
+          competencia: periodo.competencia,
+        },
+      },
+      create: {
+        cartaoCreditoId: cartao.id,
+        competencia: periodo.competencia,
+        dataAbertura: periodo.dataAbertura,
+        dataFechamento: periodo.dataFechamento,
+        dataVencimento: periodo.dataVencimento,
+        valorTotal: 0,
+        status: "aberta",
+      },
+      update: {},
+    });
 
-      await prisma.$executeRaw`
-        INSERT IGNORE INTO FaturaCartao (
-          id,
-          cartaoCreditoId,
-          competencia,
-          dataAbertura,
-          dataFechamento,
-          dataVencimento,
-          valorTotal,
-          status,
-          createdAt,
-          updatedAt
-        )
-        VALUES (
-          ${id},
-          ${cartao.id},
-          ${periodo.competencia},
-          ${periodo.dataAbertura},
-          ${periodo.dataFechamento},
-          ${periodo.dataVencimento},
-          0.00,
-          'aberta',
-          CURRENT_TIMESTAMP(3),
-          CURRENT_TIMESTAMP(3)
-        )
-      `;
-
-      const [fatura] = await prisma.$queryRaw<FaturaCartaoRow[]>`
-        SELECT
-          id,
-          cartaoCreditoId,
-          competencia,
-          dataAbertura,
-          dataFechamento,
-          dataVencimento,
-          valorTotal,
-          status,
-          dataPagamento,
-          observacoes,
-          createdAt,
-          updatedAt
-        FROM FaturaCartao
-        WHERE cartaoCreditoId = ${cartao.id}
-          AND competencia = ${periodo.competencia}
-        LIMIT 1
-      `;
-
-      return fatura;
-    } catch (error) {
-      throw createRepositoryError(error, "Nao foi possivel buscar ou criar a fatura do cartao.");
-    }
+    return { ...fatura, valorTotal: Number(fatura.valorTotal) };
   }
 
   async recalcularValorTotal(faturaCartaoId: string) {
     try {
-      await prisma.$executeRaw`
-        UPDATE FaturaCartao fatura
-        SET
-          valorTotal = (
-            SELECT
-              COALESCE((
-                SELECT SUM(gasto.valor)
-                FROM Gasto gasto
-                WHERE gasto.faturaCartaoId = ${faturaCartaoId}
-                  AND gasto.deletedAt IS NULL
-                  AND gasto.tipo = 'despesa'
-                  AND gasto.status <> 'cancelado'
-                  AND gasto.origemLancamento <> 'parcelado'
-              ), 0)
-              +
-              COALESCE((
-                SELECT SUM(lancamento.valorParcela)
-                FROM LancamentoBase lancamento
-                INNER JOIN Gasto gastoParcelado ON gastoParcelado.id = lancamento.gastoId
-                WHERE lancamento.faturaCartaoId = ${faturaCartaoId}
-                  AND gastoParcelado.deletedAt IS NULL
-                  AND gastoParcelado.tipo = 'despesa'
-                  AND gastoParcelado.status <> 'cancelado'
-              ), 0)
-          ),
-          updatedAt = CURRENT_TIMESTAMP(3)
-        WHERE fatura.id = ${faturaCartaoId}
-      `;
+      const [gastos, lancamentos] = await Promise.all([
+        this.prisma.gasto.aggregate({
+          _sum: { valor: true },
+          where: {
+            faturaCartaoId,
+            deletedAt: null,
+            tipo: "despesa",
+            status: { not: "cancelado" },
+            origemLancamento: { not: "parcelado" },
+          },
+        }),
+        this.prisma.lancamentoBase.aggregate({
+          _sum: { valorParcela: true },
+          where: {
+            faturaCartaoId,
+            gasto: {
+              deletedAt: null,
+              tipo: "despesa",
+              status: { not: "cancelado" },
+            },
+          },
+        }),
+      ]);
 
-      const [fatura] = await prisma.$queryRaw<FaturaCartaoRow[]>`
-        SELECT
-          id,
-          cartaoCreditoId,
-          competencia,
-          dataAbertura,
-          dataFechamento,
-          dataVencimento,
-          valorTotal,
-          status,
-          dataPagamento,
-          observacoes,
-          createdAt,
-          updatedAt
-        FROM FaturaCartao
-        WHERE id = ${faturaCartaoId}
-        LIMIT 1
-      `;
+      const valorTotal = Number(gastos._sum.valor ?? 0) + Number(lancamentos._sum.valorParcela ?? 0);
+      const fatura = await this.prisma.faturaCartao.update({
+        where: { id: faturaCartaoId },
+        data: { valorTotal },
+      });
 
-      return fatura;
+      return { ...fatura, valorTotal: Number(fatura.valorTotal) };
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel recalcular o valor total da fatura.");
     }
@@ -470,76 +230,57 @@ class FaturaCartaoRepository {
 
   async pagarFatura(faturaCartaoId: string, dataPagamento: Date) {
     try {
-      await prisma.$executeRaw`
-        UPDATE FaturaCartao
-        SET
-          status = 'paga',
-          dataPagamento = ${dataPagamento},
-          updatedAt = CURRENT_TIMESTAMP(3)
-        WHERE id = ${faturaCartaoId}
-      `;
+      const fatura = await this.prisma.$transaction(async (transaction) => {
+        await transaction.faturaCartao.update({
+          where: { id: faturaCartaoId },
+          data: { status: "paga", dataPagamento },
+        });
 
-      await prisma.$executeRaw`
-        UPDATE Gasto
-        SET
-          status = 'pago',
-          dataPagamento = ${dataPagamento},
-          updatedAt = CURRENT_TIMESTAMP(3)
-        WHERE faturaCartaoId = ${faturaCartaoId}
-          AND deletedAt IS NULL
-          AND status <> 'cancelado'
-          AND origemLancamento <> 'parcelado'
-      `;
+        await transaction.gasto.updateMany({
+          where: {
+            faturaCartaoId,
+            deletedAt: null,
+            status: { not: "cancelado" },
+            origemLancamento: { not: "parcelado" },
+          },
+          data: { status: "pago", dataPagamento },
+        });
 
-      await prisma.$executeRaw`
-        UPDATE LancamentoBase lancamento
-        INNER JOIN Gasto gasto ON gasto.id = lancamento.gastoId
-        SET
-          lancamento.status = 'pago',
-          lancamento.dataPagamentoParcela = ${dataPagamento},
-          lancamento.updatedAt = CURRENT_TIMESTAMP(3)
-        WHERE lancamento.faturaCartaoId = ${faturaCartaoId}
-          AND gasto.deletedAt IS NULL
-          AND gasto.status <> 'cancelado'
-      `;
+        await transaction.lancamentoBase.updateMany({
+          where: {
+            faturaCartaoId,
+            gasto: {
+              deletedAt: null,
+              status: { not: "cancelado" },
+            },
+          },
+          data: { status: "pago", dataPagamentoParcela: dataPagamento },
+        });
 
-      await prisma.$executeRaw`
-        UPDATE Gasto gasto
-        SET
-          gasto.status = 'pago',
-          gasto.dataPagamento = COALESCE(gasto.dataPagamento, ${dataPagamento}),
-          gasto.updatedAt = CURRENT_TIMESTAMP(3)
-        WHERE gasto.origemLancamento = 'parcelado'
-          AND gasto.deletedAt IS NULL
-          AND gasto.status <> 'cancelado'
-          AND gasto.id IN (
-            SELECT parcela.gastoId
-            FROM LancamentoBase parcela
-            GROUP BY parcela.gastoId
-            HAVING SUM(CASE WHEN parcela.status <> 'pago' THEN 1 ELSE 0 END) = 0
-          )
-      `;
+        const gastosParcelados = await transaction.gasto.findMany({
+          where: {
+            origemLancamento: "parcelado",
+            deletedAt: null,
+            status: { not: "cancelado" },
+            lancamentosBase: { some: { faturaCartaoId } },
+          },
+          include: { lancamentosBase: true },
+        });
 
-      const [fatura] = await prisma.$queryRaw<FaturaCartaoRow[]>`
-        SELECT
-          id,
-          cartaoCreditoId,
-          competencia,
-          dataAbertura,
-          dataFechamento,
-          dataVencimento,
-          valorTotal,
-          status,
-          dataPagamento,
-          observacoes,
-          createdAt,
-          updatedAt
-        FROM FaturaCartao
-        WHERE id = ${faturaCartaoId}
-        LIMIT 1
-      `;
+        for (const gasto of gastosParcelados) {
+          const todasPagas = gasto.lancamentosBase.every((parcela) => parcela.status === "pago");
+          if (todasPagas) {
+            await transaction.gasto.update({
+              where: { id: gasto.id },
+              data: { status: "pago", dataPagamento: gasto.dataPagamento ?? dataPagamento },
+            });
+          }
+        }
 
-      return fatura;
+        return await transaction.faturaCartao.findUnique({ where: { id: faturaCartaoId } });
+      });
+
+      return fatura ? { ...fatura, valorTotal: Number(fatura.valorTotal) } : null;
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel pagar a fatura do cartao.");
     }
@@ -547,79 +288,57 @@ class FaturaCartaoRepository {
 
   async reabrirFatura(faturaCartaoId: string) {
     try {
-      await prisma.$executeRaw`
-        UPDATE FaturaCartao
-        SET
-          status = 'aberta',
-          dataPagamento = NULL,
-          updatedAt = CURRENT_TIMESTAMP(3)
-        WHERE id = ${faturaCartaoId}
-      `;
+      const fatura = await this.prisma.$transaction(async (transaction) => {
+        await transaction.faturaCartao.update({
+          where: { id: faturaCartaoId },
+          data: { status: "aberta", dataPagamento: null },
+        });
 
-      await prisma.$executeRaw`
-        UPDATE Gasto
-        SET
-          status = 'pendente',
-          dataPagamento = NULL,
-          updatedAt = CURRENT_TIMESTAMP(3)
-        WHERE faturaCartaoId = ${faturaCartaoId}
-          AND deletedAt IS NULL
-          AND status <> 'cancelado'
-          AND origemLancamento <> 'parcelado'
-      `;
+        await transaction.gasto.updateMany({
+          where: {
+            faturaCartaoId,
+            deletedAt: null,
+            status: { not: "cancelado" },
+            origemLancamento: { not: "parcelado" },
+          },
+          data: { status: "pendente", dataPagamento: null },
+        });
 
-      await prisma.$executeRaw`
-        UPDATE LancamentoBase lancamento
-        INNER JOIN Gasto gasto ON gasto.id = lancamento.gastoId
-        SET
-          lancamento.status = 'pendente',
-          lancamento.dataPagamentoParcela = NULL,
-          lancamento.updatedAt = CURRENT_TIMESTAMP(3)
-        WHERE lancamento.faturaCartaoId = ${faturaCartaoId}
-          AND gasto.deletedAt IS NULL
-          AND gasto.status <> 'cancelado'
-      `;
+        await transaction.lancamentoBase.updateMany({
+          where: {
+            faturaCartaoId,
+            gasto: {
+              deletedAt: null,
+              status: { not: "cancelado" },
+            },
+          },
+          data: { status: "pendente", dataPagamentoParcela: null },
+        });
 
-      await prisma.$executeRaw`
-        UPDATE Gasto gasto
-        SET
-          gasto.status = 'pendente',
-          gasto.dataPagamento = NULL,
-          gasto.updatedAt = CURRENT_TIMESTAMP(3)
-        WHERE gasto.origemLancamento = 'parcelado'
-          AND gasto.deletedAt IS NULL
-          AND gasto.status <> 'cancelado'
-          AND gasto.id IN (
-            SELECT parcela.gastoId
-            FROM LancamentoBase parcela
-            WHERE parcela.faturaCartaoId = ${faturaCartaoId}
-          )
-      `;
+        const gastosParcelados = await transaction.gasto.findMany({
+          where: {
+            origemLancamento: "parcelado",
+            deletedAt: null,
+            status: { not: "cancelado" },
+            lancamentosBase: { some: { faturaCartaoId } },
+          },
+        });
 
-      const [fatura] = await prisma.$queryRaw<FaturaCartaoRow[]>`
-        SELECT
-          id,
-          cartaoCreditoId,
-          competencia,
-          dataAbertura,
-          dataFechamento,
-          dataVencimento,
-          valorTotal,
-          status,
-          dataPagamento,
-          observacoes,
-          createdAt,
-          updatedAt
-        FROM FaturaCartao
-        WHERE id = ${faturaCartaoId}
-        LIMIT 1
-      `;
+        for (const gasto of gastosParcelados) {
+          await transaction.gasto.update({
+            where: { id: gasto.id },
+            data: { status: "pendente", dataPagamento: null },
+          });
+        }
 
-      return fatura;
+        return await transaction.faturaCartao.findUnique({ where: { id: faturaCartaoId } });
+      });
+
+      return fatura ? { ...fatura, valorTotal: Number(fatura.valorTotal) } : null;
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel reabrir a fatura do cartao.");
     }
   }
 }
 
-export const faturaCartaoRepository = new FaturaCartaoRepository();
+export const faturaCartaoRepository = new PrismaFaturaCartaoRepository();
