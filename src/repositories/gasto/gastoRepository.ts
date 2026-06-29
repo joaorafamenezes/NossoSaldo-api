@@ -172,6 +172,14 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
             },
           },
           lancamentosBase: {
+            include: {
+              faturaCartao: {
+                select: {
+                  competencia: true,
+                  status: true,
+                },
+              },
+            },
             orderBy: { numeroParcela: "asc" },
           },
         },
@@ -190,6 +198,8 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
         lancamentosBase: gasto.lancamentosBase.map((lancamento) => ({
           ...lancamento,
           valorParcela: Number(lancamento.valorParcela),
+          faturaCartaoCompetencia: lancamento.faturaCartao?.competencia ?? null,
+          faturaCartaoStatus: lancamento.faturaCartao?.status ?? null,
         })),
       }));
     } catch (error) {
@@ -305,6 +315,14 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
           },
           faturaCartao: true,
           lancamentosBase: {
+            include: {
+              faturaCartao: {
+                select: {
+                  competencia: true,
+                  status: true,
+                },
+              },
+            },
             orderBy: { numeroParcela: "asc" },
           },
         },
@@ -317,6 +335,8 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
             lancamentosBase: gasto.lancamentosBase.map((lancamento) => ({
               ...lancamento,
               valorParcela: Number(lancamento.valorParcela),
+              faturaCartaoCompetencia: lancamento.faturaCartao?.competencia ?? null,
+              faturaCartaoStatus: lancamento.faturaCartao?.status ?? null,
             })),
           }
         : null;
