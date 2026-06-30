@@ -1,5 +1,7 @@
 # Arquitetura do NossoSaldo
 
+Para uma leitura focada em `Ports and Adapters`, veja tambem [arquitetura-hexagonal.md](C:\Projetos\NossoSaldo\api\src\docs\arquitetura-hexagonal.md).
+
 ## Visao Geral
 
 ```mermaid
