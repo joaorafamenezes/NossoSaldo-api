@@ -213,6 +213,21 @@ describe("GastoController", () => {
     expect(mockResponse.json).toHaveBeenCalledWith({ data: parcelaPaga });
   });
 
+  it("should reopen installment and return 200", async () => {
+    const parcelaReaberta = { id: "parcela-1", status: "pendente" };
+    (gastoService.reabrirParcela as jest.Mock).mockResolvedValue(parcelaReaberta);
+
+    await gastoController.reabrirParcela(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext,
+    );
+
+    expect(gastoService.reabrirParcela).toHaveBeenCalledWith("gasto-1", "user-1");
+    expect(mockResponse.status).toHaveBeenCalledWith(StatusCodes.OK);
+    expect(mockResponse.json).toHaveBeenCalledWith({ data: parcelaReaberta });
+  });
+
   it("should call next when service throws during update", async () => {
     const error = new Error("falha ao atualizar gasto");
     (gastoService.atualizarGasto as jest.Mock).mockRejectedValue(error);

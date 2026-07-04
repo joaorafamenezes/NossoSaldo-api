@@ -561,6 +561,24 @@ class GastoService {
         return await gastoRepository.pagarLancamentoBase(id, data.dataPagamento ?? new Date());
     }
 
+    async reabrirParcela(id: string, userId: string) {
+        const parcela = await gastoRepository.buscarLancamentoBasePorId(id);
+
+        if (!parcela) {
+            throw createHttpError(404, "Parcela nao encontrada.");
+        }
+
+        if (parcela.status !== "pago") {
+            throw createHttpError(400, "Somente parcelas pagas podem ser reabertas.");
+        }
+
+        if (parcela.responsavelId !== userId) {
+            throw createHttpError(403, "Usuario nao autorizado a reabrir esta parcela.");
+        }
+
+        return await gastoRepository.reabrirLancamentoBase(id);
+    }
+
     async deletarGasto(id: string, userId: string) {
         const gasto = await gastoRepository.buscarGastoPorId(id);
 

@@ -17,6 +17,7 @@ export interface GastoRepositoryPort {
   listarLancamentosBasePorGastoId(gastoId: string): Promise<any[]>;
   vincularLancamentoBaseAFatura(lancamentoBaseId: string, faturaCartaoId: string): Promise<void>;
   pagarLancamentoBase(id: string, dataPagamento: Date): Promise<any>;
+  reabrirLancamentoBase(id: string): Promise<any>;
   atualizarGasto(id: string, data: iAtualizarGasto): Promise<any>;
   deletarGasto(id: string): Promise<any>;
 }

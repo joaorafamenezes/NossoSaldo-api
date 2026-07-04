@@ -21,6 +21,7 @@ jest.mock("../../repositories/gasto/gastoRepository", () => ({
     reabrirGasto: jest.fn(),
     buscarLancamentoBasePorId: jest.fn(),
     pagarLancamentoBase: jest.fn(),
+    reabrirLancamentoBase: jest.fn(),
     listarLancamentosBasePorGastoId: jest.fn(),
     vincularLancamentoBaseAFatura: jest.fn(),
   },
@@ -717,6 +718,53 @@ describe("GastoService", () => {
       });
 
       await expect(gastoService.pagarParcela("parcela-1", {}, "user-1")).rejects.toMatchObject({
+        statusCode: 403,
+      });
+    });
+  });
+
+  describe("reabrirParcela", () => {
+    it("should reopen a paid installment", async () => {
+      const reopenedInstallment = { id: "parcela-1", status: "pendente" };
+      (gastoRepository.buscarLancamentoBasePorId as jest.Mock).mockResolvedValue({
+        id: "parcela-1",
+        status: "pago",
+        responsavelId: "user-1",
+      });
+      (gastoRepository.reabrirLancamentoBase as jest.Mock).mockResolvedValue(reopenedInstallment);
+
+      await expect(gastoService.reabrirParcela("parcela-1", "user-1")).resolves.toEqual(reopenedInstallment);
+      expect(gastoRepository.reabrirLancamentoBase).toHaveBeenCalledWith("parcela-1");
+    });
+
+    it("should throw 404 when installment does not exist", async () => {
+      (gastoRepository.buscarLancamentoBasePorId as jest.Mock).mockResolvedValue(null);
+
+      await expect(gastoService.reabrirParcela("parcela-1", "user-1")).rejects.toMatchObject({
+        statusCode: 404,
+      });
+    });
+
+    it("should throw 400 when installment is not paid", async () => {
+      (gastoRepository.buscarLancamentoBasePorId as jest.Mock).mockResolvedValue({
+        id: "parcela-1",
+        status: "pendente",
+        responsavelId: "user-1",
+      });
+
+      await expect(gastoService.reabrirParcela("parcela-1", "user-1")).rejects.toMatchObject({
+        statusCode: 400,
+      });
+    });
+
+    it("should throw 403 when installment belongs to another user", async () => {
+      (gastoRepository.buscarLancamentoBasePorId as jest.Mock).mockResolvedValue({
+        id: "parcela-1",
+        status: "pago",
+        responsavelId: "user-2",
+      });
+
+      await expect(gastoService.reabrirParcela("parcela-1", "user-1")).rejects.toMatchObject({
         statusCode: 403,
       });
     });

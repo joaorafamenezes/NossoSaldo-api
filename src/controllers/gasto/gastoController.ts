@@ -110,6 +110,18 @@ class GastoController {
         }
     }
 
+    async reabrirParcela(req: Request, res: Response, next: NextFunction) {
+        try {
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const payload = res.locals.payload as Token;
+
+            const parcelaReaberta = await gastoService.reabrirParcela(id, payload.id);
+            return sendSuccess(res, StatusCodes.OK, parcelaReaberta);
+        } catch (error) {
+            return next(error);
+        }
+    }
+
     async deletarGasto(req: Request, res: Response, next: NextFunction) {
         try {
             const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;

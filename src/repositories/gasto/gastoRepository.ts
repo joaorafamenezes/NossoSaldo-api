@@ -458,6 +458,22 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
     }
   }
 
+  async reabrirLancamentoBase(id: string) {
+    try {
+      await this.prisma.lancamentoBase.update({
+        where: { id },
+        data: {
+          dataPagamentoParcela: null,
+          status: "pendente",
+        },
+      });
+
+      return await this.buscarLancamentoBasePorId(id);
+    } catch (error) {
+      throw createRepositoryError(error, "Nao foi possivel reabrir a parcela.");
+    }
+  }
+
   async atualizarGasto(id: string, data: iAtualizarGasto) {
     try {
       return await this.prisma.$transaction(async (transaction) => {
