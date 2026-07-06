@@ -10,28 +10,97 @@ function formatReferencia(date: Date | null) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+type PaidMovement = {
+  referencia: string;
+  valor: number;
+  tipo: string;
+  categoria: string;
+  responsavelId: string;
+};
+
 export class PrismaRelatorioRepository implements RelatorioRepositoryPort {
   constructor(private readonly prisma: PrismaClient = defaultPrisma) {}
 
+  private async listarMovimentosPagos(
+    de: Date,
+    ate: Date,
+    whereGasto: Record<string, unknown>,
+    whereLancamentoGasto: Record<string, unknown>,
+  ): Promise<PaidMovement[]> {
+    const [gastosPagos, parcelasPagas] = await Promise.all([
+      this.prisma.gasto.findMany({
+        where: {
+          ...whereGasto,
+          deletedAt: null,
+          status: "pago",
+          origemLancamento: { not: "parcelado" },
+          dataPagamento: { gte: de, lte: ate },
+        },
+        select: {
+          tipo: true,
+          valor: true,
+          dataPagamento: true,
+          responsavelId: true,
+          categoria: {
+            select: { descricao: true },
+          },
+        },
+      }),
+      this.prisma.lancamentoBase.findMany({
+        where: {
+          status: "pago",
+          dataPagamentoParcela: { gte: de, lte: ate },
+          gasto: {
+            ...whereLancamentoGasto,
+            deletedAt: null,
+          },
+        },
+        select: {
+          valorParcela: true,
+          dataPagamentoParcela: true,
+          gasto: {
+            select: {
+              tipo: true,
+              responsavelId: true,
+              categoria: {
+                select: { descricao: true },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    return [
+      ...gastosPagos.map((gasto) => ({
+        referencia: formatReferencia(gasto.dataPagamento),
+        valor: Number(gasto.valor),
+        tipo: gasto.tipo,
+        categoria: gasto.categoria?.descricao ?? "Sem categoria",
+        responsavelId: gasto.responsavelId,
+      })),
+      ...parcelasPagas.map((parcela) => ({
+        referencia: formatReferencia(parcela.dataPagamentoParcela),
+        valor: Number(parcela.valorParcela),
+        tipo: parcela.gasto.tipo,
+        categoria: parcela.gasto.categoria?.descricao ?? "Sem categoria",
+        responsavelId: parcela.gasto.responsavelId,
+      })),
+    ];
+  }
+
   async gerarRelatorioEvolucaoMensal(de: Date, ate: Date, userId: string) {
-    const gastos = await this.prisma.gasto.findMany({
-      where: {
-        competencia: { gte: de, lte: ate },
-        responsavelId: userId,
-        deletedAt: null,
-        tipo: "despesa",
-      },
-      select: {
-        competencia: true,
-        valor: true,
-      },
-    });
+    const gastos = await this.listarMovimentosPagos(
+      de,
+      ate,
+      { responsavelId: userId, tipo: "despesa" },
+      { responsavelId: userId, tipo: "despesa" },
+    );
 
     const acumulado = new Map<string, number>();
 
     for (const gasto of gastos) {
-      const referencia = formatReferencia(gasto.competencia);
-      acumulado.set(referencia, (acumulado.get(referencia) ?? 0) + Number(gasto.valor));
+      acumulado.set(gasto.referencia, (acumulado.get(gasto.referencia) ?? 0) + gasto.valor);
     }
 
     return Array.from(acumulado.entries())
@@ -40,25 +109,19 @@ export class PrismaRelatorioRepository implements RelatorioRepositoryPort {
   }
 
   async gerarRelatorioComparativoMensal(mesAtual: Date, mesAnterior: Date, userId: string) {
-    const gastos = await this.prisma.gasto.findMany({
-      where: {
-        competencia: { gte: mesAnterior, lte: mesAtual },
-        responsavelId: userId,
-        deletedAt: null,
-      },
-      select: {
-        competencia: true,
-        valor: true,
-        tipo: true,
-      },
-    });
+    const gastos = await this.listarMovimentosPagos(
+      mesAnterior,
+      mesAtual,
+      { responsavelId: userId },
+      { responsavelId: userId },
+    );
 
     const acumulado = new Map<string, { total_despesa: number; total_receita: number }>();
 
     for (const gasto of gastos) {
-      const referencia = formatReferencia(gasto.competencia);
+      const referencia = gasto.referencia;
       const atual = acumulado.get(referencia) ?? { total_despesa: 0, total_receita: 0 };
-      const valor = Number(gasto.valor);
+      const valor = gasto.valor;
 
       if (gasto.tipo === "despesa") {
         atual.total_despesa += valor;
@@ -75,25 +138,17 @@ export class PrismaRelatorioRepository implements RelatorioRepositoryPort {
   }
 
   async gerarRelatorioTopCategoria(de: Date, ate: Date, userId: string) {
-    const gastos = await this.prisma.gasto.findMany({
-      where: {
-        competencia: { gte: de, lte: ate },
-        responsavelId: userId,
-        deletedAt: null,
-        tipo: "despesa",
-      },
-      include: {
-        categoria: {
-          select: { descricao: true },
-        },
-      },
-    });
+    const gastos = await this.listarMovimentosPagos(
+      de,
+      ate,
+      { responsavelId: userId, tipo: "despesa" },
+      { responsavelId: userId, tipo: "despesa" },
+    );
 
     const acumulado = new Map<string, number>();
 
     for (const gasto of gastos) {
-      const categoria = gasto.categoria?.descricao ?? "Sem categoria";
-      acumulado.set(categoria, (acumulado.get(categoria) ?? 0) + Number(gasto.valor));
+      acumulado.set(gasto.categoria, (acumulado.get(gasto.categoria) ?? 0) + gasto.valor);
     }
 
     return Array.from(acumulado.entries())
@@ -109,10 +164,10 @@ export class PrismaRelatorioRepository implements RelatorioRepositoryPort {
     usuario1Id: string,
     usuario2Id: string,
   ) {
-    const gastos = await this.prisma.gasto.findMany({
-      where: {
-        competencia: { gte: de, lte: ate },
-        deletedAt: null,
+    const gastos = await this.listarMovimentosPagos(
+      de,
+      ate,
+      {
         tipo: "despesa",
         responsavelId: { in: [usuario1Id, usuario2Id] },
         OR: [
@@ -123,16 +178,23 @@ export class PrismaRelatorioRepository implements RelatorioRepositoryPort {
           },
         ],
       },
-      select: {
-        responsavelId: true,
-        valor: true,
+      {
+        tipo: "despesa",
+        responsavelId: { in: [usuario1Id, usuario2Id] },
+        OR: [
+          { responsavelId: usuarioLogadoId },
+          {
+            responsavelId: { not: usuarioLogadoId },
+            naoCompartilhar: false,
+          },
+        ],
       },
-    });
+    );
 
     const acumulado = new Map<string, number>();
 
     for (const gasto of gastos) {
-      acumulado.set(gasto.responsavelId, (acumulado.get(gasto.responsavelId) ?? 0) + Number(gasto.valor));
+      acumulado.set(gasto.responsavelId, (acumulado.get(gasto.responsavelId) ?? 0) + gasto.valor);
     }
 
     return Array.from(acumulado.entries()).map(([usuario_id, total_gasto]) => ({ usuario_id, total_gasto }));
