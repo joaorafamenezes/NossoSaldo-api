@@ -3,7 +3,10 @@ import iCriarGasto from "../../@types/gasto/iCriarGasto";
 
 export interface GastoRepositoryPort {
   criarGastoUsuarioLogado(gasto: iCriarGasto): Promise<any>;
-  listarGastosPorResponsavelId(responsavelId: string): Promise<any[]>;
+  listarGastosPorResponsavelId(
+    responsavelId: string,
+    filtros?: { competencia?: string; de?: string; ate?: string },
+  ): Promise<any[]>;
   buscarTotalGastoMesAtualPorResponsavelId(responsavelId: string, inicioMes: Date, fimMes: Date): Promise<number>;
   listarModelosRecorrentesAtivosPorResponsaveis(responsaveisIds: string[], inicioMes: Date, fimMes: Date): Promise<any[]>;
   buscarGastoGeradoPorRecorrencia(recorrenciaPaiId: string, inicioMes: Date, fimMes: Date): Promise<any>;

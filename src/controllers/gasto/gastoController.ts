@@ -27,9 +27,11 @@ class GastoController {
             const ate = typeof query.ate === "string" ? query.ate : undefined;
 
             const gastos = await gastoService.listarGastosPorResponsavelId(payload.id, { competencia, de, ate });
+
+
             return sendSuccess(res, StatusCodes.OK, gastos, {
                 total: gastos.length,
-            });
+            });            
         } catch (error) {
             return next(error);
         }

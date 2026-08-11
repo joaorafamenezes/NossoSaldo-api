@@ -1,16 +1,18 @@
+import { API_PREFIX, API_VERSION } from "../config/apiVersion";
+
 const serverUrl = process.env.APP_URL ?? "http://localhost:10000";
 
 export const openApiSpec = {
   openapi: "3.0.3",
   info: {
     title: "NossoSaldo API",
-    version: "1.0.0",
+    version: API_VERSION,
     description: "Documentacao das rotas da API do NossoSaldo, um sistema de controle financeiro pessoal e compartilhado com gastos, receitas, cartoes, faturas, contas conjuntas e relatorios.",
   },
   servers: [
     {
-      url: serverUrl,
-      description: "Servidor principal",
+      url: `${serverUrl}${API_PREFIX}`,
+      description: `Servidor principal (${API_VERSION})`,
     },
   ],
   tags: [
@@ -23,6 +25,7 @@ export const openApiSpec = {
     { name: "Cartoes de Credito", description: "Operacoes relacionadas a cartoes de credito" },
     { name: "Faturas", description: "Operacoes relacionadas a faturas de cartao" },
     { name: "Relatorios", description: "Operacoes relacionadas a relatorios" },
+    { name: "Insights", description: "Operacoes relacionadas a analises e gargalos" },
   ],
   components: {
     securitySchemes: {
@@ -772,6 +775,23 @@ export const openApiSpec = {
         },
       },
     },
+    "/lancamentosBase/{id}/reabertura": {
+      patch: {
+        tags: ["Gastos"],
+        summary: "Reabre uma parcela paga",
+        security: [{ AccessTokenAuth: [] }],
+        parameters: [
+          { in: "path", name: "id", required: true, schema: { type: "string", format: "uuid" } },
+        ],
+        responses: {
+          "200": { description: "Parcela reaberta com sucesso" },
+          "400": { description: "Operacao invalida", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Nao autorizado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Sem permissao", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "404": { description: "Parcela nao encontrada", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
     "/cartoesCredito": {
       get: {
         tags: ["Cartoes de Credito"],
@@ -930,6 +950,22 @@ export const openApiSpec = {
           "400": { description: "Periodo invalido", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "401": { description: "Nao autorizado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "404": { description: "Conta conjunta nao encontrada", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+    "/insights/gargalos/{de}/{ate}": {
+      get: {
+        tags: ["Insights"],
+        summary: "Gera insights de gargalos no periodo selecionado",
+        security: [{ AccessTokenAuth: [] }],
+        parameters: [
+          { in: "path", name: "de", required: true, schema: { type: "string", format: "date" } },
+          { in: "path", name: "ate", required: true, schema: { type: "string", format: "date" } },
+        ],
+        responses: {
+          "200": { description: "Insights gerados com sucesso" },
+          "401": { description: "Nao autorizado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "422": { description: "Parametros invalidos", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
         },
       },
     },

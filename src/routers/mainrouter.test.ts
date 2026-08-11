@@ -1,11 +1,12 @@
 import request from "supertest";
 import { app } from "../app";
 import authorization from "../secure/authorization";
+import { API_PREFIX } from "../config/apiVersion";
 
 describe("GET /health", () => {
   it("should return health status", async () => {
     const response = await request(app)
-      .get("/health")
+      .get(`${API_PREFIX}/health`)
       .expect(200);
 
     expect(response.body).toEqual(
@@ -18,7 +19,7 @@ describe("GET /health", () => {
 
   it("should return JSON content type", async () => {
     const response = await request(app)
-      .get("/health")
+      .get(`${API_PREFIX}/health`)
       .expect(200);
 
     expect(response.headers["content-type"]).toMatch(/json/);
@@ -66,7 +67,7 @@ describe("POST /usuarios", () => {
     },
   ])("should return 422 when $name", async ({ userData, expectedDetail }) => {
     const response = await request(app)
-      .post("/usuarios")
+      .post(`${API_PREFIX}/usuarios`)
       .set("x-access-token", token)
       .send(userData)
       .expect(422);

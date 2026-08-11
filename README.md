@@ -1,12 +1,12 @@
 ﻿# NossoSaldo API
 
-API REST do NossoSaldo, responsavel por autenticacao, usuarios, categorias, contas conjuntas, gastos, cartoes de credito, faturas e relatorios.
+API REST do NossoSaldo, responsavel por autenticacao, usuarios, categorias, contas conjuntas, gastos, cartoes de credito, faturas, relatorios e insights.
 
 ## Stack
 
 - Node.js + Express
 - TypeScript
-- Prisma + MySQL
+- Prisma + MySQL ou PostgreSQL
 - Joi para validacao de payloads
 - JWT via header `x-access-token`
 - Swagger/OpenAPI
@@ -49,9 +49,16 @@ Exemplo de bancos por ambiente:
 
 ## Documentacao
 
-- Swagger UI: `/docs`
-- OpenAPI JSON: `/docs/openapi.json`
+- Prefixo atual da API: `/api/v1`
+- Swagger UI: `/api/v1/docs`
+- OpenAPI JSON: `/api/v1/docs/openapi.json`
 - Fonte da especificacao: `src/docs/openapi.ts`
+
+## Versionamento
+
+- A aplicacao pode evoluir em `MAJOR.MINOR.PATCH`, enquanto a API evolui por contrato versionado.
+- Hoje o contrato publico da API esta em `v1`.
+- A estrutura atual deixa preparada a coexistencia futura de novas versoes, como `v2`, sem precisar reescrever a organizacao interna das rotas.
 
 ## Regras de gastos
 

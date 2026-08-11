@@ -30,7 +30,48 @@ function calculateInstallmentValues(totalValue: number, installments: number) {
 }
 
 function getStartOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function createUtcCalendarDate(year: number, month: number, day: number, endOfDay = false) {
+  return new Date(Date.UTC(
+    year,
+    month - 1,
+    day,
+    endOfDay ? 23 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 999 : 0,
+  ));
+}
+
+function parseCalendarDateString(value?: string, endOfDay = false) {
+  if (!value) {
+    return null;
+  }
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+
+  if (!match) {
+    return null;
+  }
+
+  return createUtcCalendarDate(Number(match[1]), Number(match[2]), Number(match[3]), endOfDay);
+}
+
+function getDateRangeBounds(de?: string, ate?: string) {
+  if (!de || !ate) {
+    return null;
+  }
+
+  const start = parseCalendarDateString(de);
+  const end = parseCalendarDateString(ate, true);
+
+  if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return null;
+  }
+
+  return { start, end };
 }
 
 async function refreshLancamentosBase(transaction: Prisma.TransactionClient, gasto: any) {
@@ -145,12 +186,42 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
     }
   }
 
-  async listarGastosPorResponsavelId(responsavelId: string) {
+  async listarGastosPorResponsavelId(
+    responsavelId: string,
+    filtros?: { competencia?: string; de?: string; ate?: string },
+  ) {
     try {
       const usuariosCompartilhadosIds = await listarUsuariosCompartilhados(this.prisma, responsavelId);
+      const dateRange = getDateRangeBounds(filtros?.de, filtros?.ate);
       const gastos = await this.prisma.gasto.findMany({
         where: {
           deletedAt: null,
+          ...(dateRange
+            ? {
+              AND: [
+                {
+                  OR: [
+                    {
+                      dataVencimento: {
+                        gte: dateRange.start,
+                        lte: dateRange.end,
+                      },
+                    },
+                    {
+                      lancamentosBase: {
+                        some: {
+                          dataVencimentoParcela: {
+                            gte: dateRange.start,
+                            lte: dateRange.end,
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            }
+            : {}),
           OR: [
             { responsavelId },
             ...(usuariosCompartilhadosIds.length > 0
@@ -291,10 +362,14 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
   }
 
   calcularDataVencimentoRecorrente(dataVencimentoOriginal: Date, competencia: Date) {
-    const diaVencimento = dataVencimentoOriginal.getDate();
-    const ultimoDiaMes = new Date(competencia.getFullYear(), competencia.getMonth() + 1, 0).getDate();
+    const diaVencimento = dataVencimentoOriginal.getUTCDate();
+    const ultimoDiaMes = new Date(Date.UTC(competencia.getUTCFullYear(), competencia.getUTCMonth() + 1, 0)).getUTCDate();
 
-    return new Date(competencia.getFullYear(), competencia.getMonth(), Math.min(diaVencimento, ultimoDiaMes));
+    return new Date(Date.UTC(
+      competencia.getUTCFullYear(),
+      competencia.getUTCMonth(),
+      Math.min(diaVencimento, ultimoDiaMes),
+    ));
   }
 
   normalizarCompetenciaMes(date: Date) {

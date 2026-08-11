@@ -216,7 +216,7 @@ describe("GastoService", () => {
         2,
         expect.objectContaining({
           recorrenciaPaiId: "gasto-recorrente",
-          competencia: new Date(2026, 5, 1),
+          competencia: new Date(Date.UTC(2026, 5, 1)),
           dataVencimento: new Date(2026, 5, 10),
         }),
       );
@@ -224,7 +224,7 @@ describe("GastoService", () => {
         3,
         expect.objectContaining({
           recorrenciaPaiId: "gasto-recorrente",
-          competencia: new Date(2026, 6, 1),
+          competencia: new Date(Date.UTC(2026, 6, 1)),
           dataVencimento: new Date(2026, 6, 10),
         }),
       );
@@ -284,43 +284,23 @@ describe("GastoService", () => {
       (gastoRepository.listarGastosPorResponsavelId as jest.Mock).mockResolvedValue(gastos);
 
       await expect(gastoService.listarGastosPorResponsavelId("user-1")).resolves.toEqual(gastos);
-      expect(gastoRepository.listarModelosRecorrentesAtivosPorResponsaveis).toHaveBeenCalledTimes(1);
+      expect(gastoRepository.listarGastosPorResponsavelId).toHaveBeenCalledWith("user-1", undefined);
+      expect(gastoRepository.listarModelosRecorrentesAtivosPorResponsaveis).not.toHaveBeenCalled();
+      expect(gastoRepository.criarGastoUsuarioLogado).not.toHaveBeenCalled();
     });
 
-    it("should generate the current month expense from an active recurring model before listing", async () => {
+    it("should only list gastos with filters and not generate recurring expenses", async () => {
       const gastos = [{ id: "gasto-gerado" }];
-      const modelo = {
-        id: "modelo-netflix",
-        descricao: "Netflix",
-        tipo: "despesa",
-        valor: 39.9,
-        categoriaId: "cat-1",
-        responsavelId: "user-1",
-        cartaoCreditoId: null,
-        naoCompartilhar: false,
-        dataVencimento: new Date("2026-01-10T00:00:00.000Z"),
-        dataInicioRecorrencia: new Date("2026-01-10T00:00:00.000Z"),
-        observacao: null,
-      };
+      const filtros = { de: "2026-08-01", ate: "2026-08-31" };
 
       (usuarioRepository.listarUsuarioPorId as jest.Mock).mockResolvedValue({ id: "user-1" });
-      (gastoRepository.listarModelosRecorrentesAtivosPorResponsaveis as jest.Mock).mockResolvedValue([modelo]);
-      (gastoRepository.buscarGastoGeradoPorRecorrencia as jest.Mock).mockResolvedValue(null);
-      (gastoRepository.calcularDataVencimentoRecorrente as jest.Mock).mockReturnValue(new Date("2026-05-10T00:00:00.000Z"));
-      (gastoRepository.criarGastoUsuarioLogado as jest.Mock).mockResolvedValue({ id: "gasto-gerado" });
       (gastoRepository.listarGastosPorResponsavelId as jest.Mock).mockResolvedValue(gastos);
 
-      await expect(gastoService.listarGastosPorResponsavelId("user-1")).resolves.toEqual(gastos);
+      await expect(gastoService.listarGastosPorResponsavelId("user-1", filtros)).resolves.toEqual(gastos);
 
-      expect(gastoRepository.criarGastoUsuarioLogado).toHaveBeenCalledWith(
-        expect.objectContaining({
-          descricao: "Netflix",
-          origemLancamento: "recorrente",
-          recorrenciaPaiId: "modelo-netflix",
-          responsavelId: "user-1",
-          status: "pendente",
-        }),
-      );
+      expect(gastoRepository.listarGastosPorResponsavelId).toHaveBeenCalledWith("user-1", filtros);
+      expect(gastoRepository.listarModelosRecorrentesAtivosPorResponsaveis).not.toHaveBeenCalled();
+      expect(gastoRepository.criarGastoUsuarioLogado).not.toHaveBeenCalled();
     });
 
     it("should throw 404 when user does not exist during list", async () => {
@@ -500,7 +480,7 @@ describe("GastoService", () => {
       expect(gastoRepository.criarGastoUsuarioLogado).toHaveBeenCalledWith(
         expect.objectContaining({
           recorrenciaPaiId: "gasto-maio",
-          competencia: new Date(2026, 8, 1),
+          competencia: new Date(Date.UTC(2026, 8, 1)),
           dataVencimento: new Date(2026, 8, 15),
         }),
       );

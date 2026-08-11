@@ -3,6 +3,7 @@ import cors from "cors";
 import { isHttpError } from "http-errors";
 import swaggerUi from "swagger-ui-express";
 import { openApiSpec } from "./docs/openapi";
+import { API_PREFIX } from "./config/apiVersion";
 import { httpLogger } from "./lib/logger";
 import { router } from "./routers/mainrouter";
 
@@ -29,11 +30,11 @@ function resolveErrorCode(err: unknown, statusCode: number) {
 app.use(express.json());
 app.use(cors());
 app.use(httpLogger);
-app.get("/docs/openapi.json", (_req: Request, res: Response) => {
+app.get(`${API_PREFIX}/docs/openapi.json`, (_req: Request, res: Response) => {
   res.json(openApiSpec);
 });
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));
-app.use(router);
+app.use(`${API_PREFIX}/docs`, swaggerUi.serve, swaggerUi.setup(openApiSpec));
+app.use(API_PREFIX, router);
 
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   if (res.headersSent) {

@@ -9,12 +9,31 @@ import { gastoRepository } from "../../repositories/gasto/gastoRepository";
 import { usuarioRepository } from "../../repositories/usuario/usuarioRepository";
 
 class GastoService {
+    private parseCalendarDate(value: string, endOfDay = false) {
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+
+        if (!match) {
+            const fallback = new Date(value);
+            return Number.isNaN(fallback.getTime()) ? null : fallback;
+        }
+
+        return new Date(Date.UTC(
+            Number(match[1]),
+            Number(match[2]) - 1,
+            Number(match[3]),
+            endOfDay ? 23 : 0,
+            endOfDay ? 59 : 0,
+            endOfDay ? 59 : 0,
+            endOfDay ? 999 : 0,
+        ));
+    }
+
     private getInicioMes(date: Date) {
-        return new Date(date.getFullYear(), date.getMonth(), 1);
+        return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
     }
 
     private getFimMes(date: Date) {
-        return new Date(date.getFullYear(), date.getMonth() + 1, 1);
+        return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1));
     }
 
     private getMesesNoPeriodo(de: Date, ate: Date) {
@@ -24,7 +43,7 @@ class GastoService {
 
         while (cursor <= fim) {
             meses.push(new Date(cursor));
-            cursor.setMonth(cursor.getMonth() + 1);
+            cursor.setUTCMonth(cursor.getUTCMonth() + 1);
         }
 
         return meses;
@@ -40,7 +59,7 @@ class GastoService {
     }
 
     private getMesKey(date: Date) {
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+        return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
     }
 
     private isMesmoOuDepois(primeira: Date, segunda: Date) {
@@ -393,23 +412,7 @@ class GastoService {
             throw createHttpError(404, "Usuario nao encontrado.");
         }
 
-        if (filtros?.competencia) {
-            await this.gerarGastosRecorrentesPorPeriodo(
-                responsavelId,
-                new Date(`${filtros.competencia}-01T00:00:00`),
-                new Date(`${filtros.competencia}-01T00:00:00`),
-            );
-        } else if (filtros?.de && filtros?.ate) {
-            await this.gerarGastosRecorrentesPorPeriodo(
-                responsavelId,
-                new Date(filtros.de),
-                new Date(filtros.ate),
-            );
-        } else {
-            await this.gerarGastosRecorrentesDoMes(responsavelId);
-        }
-
-        return await gastoRepository.listarGastosPorResponsavelId(responsavelId);
+        return await gastoRepository.listarGastosPorResponsavelId(responsavelId, filtros);
     }
 
     async buscarTotalGastoMesAtualPorResponsavelId(responsavelId: string) {

@@ -1,5 +1,6 @@
 import request from "supertest";
 import createHttpError from "http-errors";
+import { API_PREFIX } from "./config/apiVersion";
 
 describe("app error middleware", () => {
   beforeEach(() => {
@@ -19,7 +20,7 @@ describe("app error middleware", () => {
     });
 
     const { app } = await import("./app");
-    const response = await request(app).get("/boom");
+    const response = await request(app).get(`${API_PREFIX}/boom`);
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual(
@@ -46,7 +47,7 @@ describe("app error middleware", () => {
     });
 
     const { app } = await import("./app");
-    const response = await request(app).get("/validation");
+    const response = await request(app).get(`${API_PREFIX}/validation`);
 
     expect(response.status).toBe(422);
     expect(response.body).toEqual(
@@ -73,7 +74,7 @@ describe("app error middleware", () => {
     });
 
     const { app } = await import("./app");
-    const response = await request(app).get("/non-http-error");
+    const response = await request(app).get(`${API_PREFIX}/non-http-error`);
 
     expect(response.status).toBe(500);
     expect(response.body).toEqual(

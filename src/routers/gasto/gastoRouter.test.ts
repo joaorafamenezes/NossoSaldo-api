@@ -23,6 +23,9 @@ describe("gastoRouter", () => {
         criarGastoUsuarioLogado: jest.fn(),
         atualizarGasto: jest.fn(),
         pagarGasto: jest.fn(),
+        reabrirGasto: jest.fn(),
+        pagarParcela: jest.fn(),
+        reabrirParcela: jest.fn(),
         deletarGasto: jest.fn(),
         ...overrides,
       },
@@ -151,6 +154,69 @@ describe("gastoRouter", () => {
       status: "pago",
     });
     expect(pagarGasto).toHaveBeenCalledTimes(1);
+  });
+
+  it("should delegate PATCH /pagarGastos/:id/reabertura to gastoController.reabrirGasto", async () => {
+    const reabrirGasto = jest.fn(async (req, res) => {
+      res.status(200).json({ id: req.params.id, status: "pendente" });
+    });
+
+    setupMocks({ reabrirGasto });
+
+    const { gastoRouter } = await import("./gastoRouter");
+    const app = express();
+    app.use(express.json());
+    app.use(gastoRouter);
+
+    const response = await request(app).patch("/pagarGastos/gasto-1/reabertura");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ id: "gasto-1", status: "pendente" });
+    expect(reabrirGasto).toHaveBeenCalledTimes(1);
+  });
+
+  it("should delegate PATCH /lancamentosBase/:id/pagamento to gastoController.pagarParcela", async () => {
+    const pagarParcela = jest.fn(async (req, res) => {
+      res.status(200).json({ id: req.params.id, ...req.body, status: "pago" });
+    });
+
+    setupMocks({ pagarParcela });
+
+    const { gastoRouter } = await import("./gastoRouter");
+    const app = express();
+    app.use(express.json());
+    app.use(gastoRouter);
+
+    const response = await request(app)
+      .patch("/lancamentosBase/parcela-1/pagamento")
+      .send({ dataPagamento: "2026-07-19T12:00:00.000Z" });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      id: "parcela-1",
+      dataPagamento: "2026-07-19T12:00:00.000Z",
+      status: "pago",
+    });
+    expect(pagarParcela).toHaveBeenCalledTimes(1);
+  });
+
+  it("should delegate PATCH /lancamentosBase/:id/reabertura to gastoController.reabrirParcela", async () => {
+    const reabrirParcela = jest.fn(async (req, res) => {
+      res.status(200).json({ id: req.params.id, status: "pendente" });
+    });
+
+    setupMocks({ reabrirParcela });
+
+    const { gastoRouter } = await import("./gastoRouter");
+    const app = express();
+    app.use(express.json());
+    app.use(gastoRouter);
+
+    const response = await request(app).patch("/lancamentosBase/parcela-1/reabertura");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ id: "parcela-1", status: "pendente" });
+    expect(reabrirParcela).toHaveBeenCalledTimes(1);
   });
 
   it("should delegate DELETE /gastos/:id to gastoController.deletarGasto", async () => {

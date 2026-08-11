@@ -99,10 +99,32 @@ function defineNivelAtencao(gargalos: InsightGargalo[]) {
 }
 
 class InsightsService {
+  private parseCalendarDate(value: string, endOfDay = false) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+
+    if (!match) {
+      const fallback = new Date(value);
+      return Number.isNaN(fallback.getTime()) ? null : fallback;
+    }
+
+    return new Date(Date.UTC(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]),
+      endOfDay ? 23 : 0,
+      endOfDay ? 59 : 0,
+      endOfDay ? 59 : 0,
+      endOfDay ? 999 : 0,
+    ));
+  }
+
   async gerarInsightsGargalos(de: string, ate: string, userId: string) {
-    const dataDe = new Date(de);
-    const dataAte = new Date(ate);
-    dataAte.setHours(23, 59, 59, 999);
+    const dataDe = this.parseCalendarDate(de);
+    const dataAte = this.parseCalendarDate(ate, true);
+
+    if (!dataDe || !dataAte) {
+      throw new Error("Periodo informado para insights e invalido.");
+    }
 
     const { previousStart, previousEnd } = calculatePreviousPeriod(dataDe, dataAte);
 
