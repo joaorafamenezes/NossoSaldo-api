@@ -7,6 +7,18 @@ describe("app error middleware", () => {
     jest.resetModules();
   });
 
+  it("should expose root health check for platform probes", async () => {
+    const { app } = await import("./app");
+    const response = await request(app).get("/health");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("API 'NossoSaldo'"),
+      }),
+    );
+  });
+
   it("should return the http error status and message for operational errors", async () => {
     jest.doMock("./routers/mainrouter", () => {
       const express = require("express");

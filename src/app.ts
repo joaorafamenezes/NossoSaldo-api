@@ -30,6 +30,11 @@ function resolveErrorCode(err: unknown, statusCode: number) {
 app.use(express.json());
 app.use(cors());
 app.use(httpLogger);
+app.get("/health", (_req: Request, res: Response) => {
+  res.status(200).json({
+    message: "API 'NossoSaldo' funcionando corretamente.",
+  });
+});
 app.get(`${API_PREFIX}/docs/openapi.json`, (_req: Request, res: Response) => {
   res.json(openApiSpec);
 });
