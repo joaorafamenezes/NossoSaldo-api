@@ -1,11 +1,18 @@
 const mockExecuteRaw = jest.fn();
 const mockQueryRaw = jest.fn();
+const mockPasswordResetToken = {
+  updateMany: jest.fn(),
+  create: jest.fn(),
+  findFirst: jest.fn(),
+  update: jest.fn(),
+};
 
 jest.mock("@prisma/client", () => {
   return {
     PrismaClient: jest.fn(() => ({
       $executeRaw: mockExecuteRaw,
       $queryRaw: mockQueryRaw,
+      passwordResetToken: mockPasswordResetToken,
     })),
   };
 });
@@ -18,7 +25,7 @@ describe("PasswordResetTokenRepository", () => {
   });
 
   it("should invalidate active tokens by user id", async () => {
-    mockExecuteRaw.mockResolvedValue(2);
+    mockPasswordResetToken.updateMany.mockResolvedValue({ count: 2 });
 
     await expect(passwordResetTokenRepository.invalidarTokensAtivosPorUsuarioId("user-1")).resolves.toEqual({ count: 2 });
   });
@@ -30,7 +37,10 @@ describe("PasswordResetTokenRepository", () => {
       expiresAt: new Date(),
     };
 
-    mockExecuteRaw.mockResolvedValue(1);
+    mockPasswordResetToken.create.mockImplementation(({ data }: any) => ({
+      ...data,
+      usedAt: null,
+    }));
 
     const result = await passwordResetTokenRepository.criarToken(payload);
 
@@ -45,13 +55,13 @@ describe("PasswordResetTokenRepository", () => {
 
   it("should find a valid token by hash", async () => {
     const tokenRecord = { id: "token-1", tokenHash: "hash", usuarioId: "user-1" };
-    mockQueryRaw.mockResolvedValue([tokenRecord]);
+    mockPasswordResetToken.findFirst.mockResolvedValue(tokenRecord);
 
     await expect(passwordResetTokenRepository.buscarTokenValidoPorHash("hash")).resolves.toEqual(tokenRecord);
   });
 
   it("should mark a token as used", async () => {
-    mockExecuteRaw.mockResolvedValue(1);
+    mockPasswordResetToken.update.mockResolvedValue({});
 
     const result = await passwordResetTokenRepository.marcarTokenComoUsado("token-1");
 

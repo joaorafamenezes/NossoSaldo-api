@@ -71,7 +71,7 @@ describe("UsuarioRepository", () => {
 
     await expect(usuarioRepository.listarUsuarios()).rejects.toHaveProperty(
       "message",
-      "Não foi possível listar os usuários.",
+      "Nao foi possivel listar os usuarios.",
     );
   });
 
@@ -87,7 +87,7 @@ describe("UsuarioRepository", () => {
 
     await expect(usuarioRepository.listarUsuarioPorId("1")).rejects.toHaveProperty(
       "message",
-      "Não foi possível buscar o usuário.",
+      "Nao foi possivel buscar o usuario.",
     );
   });
 
@@ -103,7 +103,7 @@ describe("UsuarioRepository", () => {
 
     await expect(usuarioRepository.atualizaUsuario("1", { nome: "Joao Atualizado" })).rejects.toHaveProperty(
       "message",
-      "Não foi possível atualizar o usuário.",
+      "Nao foi possivel atualizar o usuario.",
     );
   });
 
@@ -119,7 +119,7 @@ describe("UsuarioRepository", () => {
 
     await expect(usuarioRepository.atualizaSenhaUsuario("1", "nova-senha-hash")).rejects.toHaveProperty(
       "message",
-      "Não foi possível atualizar a senha do usuário.",
+      "Nao foi possivel atualizar a senha do usuario.",
     );
   });
 
@@ -134,7 +134,7 @@ describe("UsuarioRepository", () => {
 
     await expect(usuarioRepository.buscarSenhaUsuario("1")).rejects.toHaveProperty(
       "message",
-      "Não foi possível buscar a senha do usuário.",
+      "Nao foi possivel buscar a senha do usuario.",
     );
   });
 });

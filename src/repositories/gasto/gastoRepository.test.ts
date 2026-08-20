@@ -5,12 +5,19 @@ let mockPrisma: any;
 jest.mock("@prisma/client", () => {
   mockPrisma = {
     gasto: {
+      create: jest.fn(),
       aggregate: jest.fn(),
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
     },
     contaConjunta: {
       findMany: jest.fn(),
+    },
+    lancamentoBase: {
+      findMany: jest.fn(),
+      deleteMany: jest.fn(),
+      createMany: jest.fn(),
     },
     $queryRaw: jest.fn(),
     $executeRaw: jest.fn(),
@@ -18,7 +25,13 @@ jest.mock("@prisma/client", () => {
       $executeRaw: jest.fn(),
       $queryRaw: jest.fn().mockResolvedValue([]),
       gasto: {
+        create: jest.fn(),
         update: jest.fn(),
+      },
+      lancamentoBase: {
+        findMany: jest.fn().mockResolvedValue([]),
+        deleteMany: jest.fn(),
+        createMany: jest.fn(),
       },
     })),
   };
@@ -40,11 +53,25 @@ describe("GastoRepository", () => {
     jest.clearAllMocks();
     mockPrisma.contaConjunta.findMany.mockResolvedValue([]);
     mockPrisma.$queryRaw.mockResolvedValue([]);
+    mockPrisma.gasto.create.mockReset();
+    mockPrisma.gasto.findMany.mockReset();
+    mockPrisma.gasto.findFirst.mockReset();
+    mockPrisma.gasto.update.mockReset();
+    mockPrisma.lancamentoBase.findMany.mockReset();
+    mockPrisma.lancamentoBase.deleteMany.mockReset();
+    mockPrisma.lancamentoBase.createMany.mockReset();
+    mockPrisma.lancamentoBase.findMany.mockResolvedValue([]);
     mockPrisma.$transaction.mockImplementation(async (callback: any) => callback({
       $executeRaw: jest.fn(),
       $queryRaw: jest.fn().mockResolvedValue([]),
       gasto: {
+        create: mockPrisma.gasto.create,
         update: mockPrisma.gasto.update,
+      },
+      lancamentoBase: {
+        findMany: mockPrisma.lancamentoBase.findMany,
+        deleteMany: mockPrisma.lancamentoBase.deleteMany,
+        createMany: mockPrisma.lancamentoBase.createMany,
       },
     }));
   });
@@ -60,6 +87,7 @@ describe("GastoRepository", () => {
       categoriaId: "cat-1",
       responsavelId: "user-1",
     };
+    mockPrisma.gasto.create.mockResolvedValue({ id: "gasto-1", ...payload });
     mockPrisma.gasto.findFirst.mockResolvedValue({ id: "gasto-1", ...payload });
 
     await expect(gastoRepository.criarGastoUsuarioLogado(payload as any)).resolves.toEqual({
@@ -71,10 +99,14 @@ describe("GastoRepository", () => {
   });
 
   it("should create lancamento base records for installment expenses", async () => {
-    const executeRaw = jest.fn();
+    const createMany = jest.fn();
     mockPrisma.$transaction.mockImplementation(async (callback: any) => callback({
-      $executeRaw: executeRaw,
-      $queryRaw: jest.fn().mockResolvedValue([]),
+      gasto: { create: mockPrisma.gasto.create },
+      lancamentoBase: {
+        findMany: jest.fn().mockResolvedValue([]),
+        deleteMany: jest.fn(),
+        createMany,
+      },
     }));
 
     const payload = {
@@ -88,6 +120,7 @@ describe("GastoRepository", () => {
       categoriaId: "cat-1",
       responsavelId: "user-1",
     };
+    mockPrisma.gasto.create.mockResolvedValue({ id: "gasto-1", ...payload });
     mockPrisma.gasto.findFirst.mockResolvedValue({ id: "gasto-1", ...payload });
 
     await expect(gastoRepository.criarGastoUsuarioLogado(payload as any)).resolves.toEqual({
@@ -95,7 +128,7 @@ describe("GastoRepository", () => {
       ...payload,
     });
 
-    expect(executeRaw).toHaveBeenCalledTimes(4);
+    expect(createMany).toHaveBeenCalledTimes(1);
   });
 
   it("should map create gasto errors to 500", async () => {
@@ -107,24 +140,28 @@ describe("GastoRepository", () => {
   });
 
   it("should list gastos by responsavel id", async () => {
-    const gastos = [{ id: "gasto-1" }, { id: "gasto-2" }];
+    const gastos = [{ id: "gasto-1", valor: 100 }, { id: "gasto-2", valor: 200 }];
     mockPrisma.contaConjunta.findMany.mockResolvedValue([
       { usuario1Id: "user-1", usuario2Id: "user-2" },
     ]);
-    mockPrisma.$queryRaw
-      .mockResolvedValueOnce(gastos)
-      .mockResolvedValueOnce([]);
+    mockPrisma.gasto.findMany.mockResolvedValue(gastos.map((gasto) => ({
+      ...gasto,
+      responsavel: { nome: "Joao" },
+      faturaCartao: null,
+      cartaoCredito: null,
+      lancamentosBase: [],
+    })));
 
     await expect(gastoRepository.listarGastosPorResponsavelId("user-1")).resolves.toEqual([
-      { id: "gasto-1", lancamentosBase: [] },
-      { id: "gasto-2", lancamentosBase: [] },
+      expect.objectContaining({ id: "gasto-1", valor: 100, responsavelNome: "Joao", lancamentosBase: [] }),
+      expect.objectContaining({ id: "gasto-2", valor: 200, responsavelNome: "Joao", lancamentosBase: [] }),
     ]);
     expect(mockPrisma.contaConjunta.findMany).toHaveBeenCalledTimes(1);
-    expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(mockPrisma.gasto.findMany).toHaveBeenCalledTimes(1);
   });
 
   it("should map list gastos errors to 500", async () => {
-    mockPrisma.$queryRaw.mockRejectedValue(new Error("Database unavailable"));
+    mockPrisma.gasto.findMany.mockRejectedValue(new Error("Database unavailable"));
 
     await expect(gastoRepository.listarGastosPorResponsavelId("user-1")).rejects.toMatchObject({
       statusCode: 500,
@@ -158,7 +195,7 @@ describe("GastoRepository", () => {
   });
 
   it("should find gasto by id", async () => {
-    const gasto = { id: "gasto-1", descricao: "Mercado" };
+    const gasto = { id: "gasto-1", descricao: "Mercado", valor: 100, lancamentosBase: [] };
     mockPrisma.gasto.findFirst.mockResolvedValue(gasto);
 
     await expect(gastoRepository.buscarGastoPorId("gasto-1")).resolves.toEqual(gasto);
@@ -219,12 +256,20 @@ describe("GastoRepository", () => {
       gasto: {
         update: mockPrisma.gasto.update,
       },
+      lancamentoBase: {
+        findMany: jest.fn().mockResolvedValue([
+          { numeroParcela: 1, dataPagamentoParcela: null, faturaCartaoId: null },
+          { numeroParcela: 2, dataPagamentoParcela: null, faturaCartaoId: null },
+        ]),
+        deleteMany: jest.fn(),
+        createMany: jest.fn(),
+      },
     }));
 
     await expect(gastoRepository.atualizarGasto("gasto-1", { valor: 1200 })).resolves.toEqual(gastoAtualizado);
 
-    expect(queryRaw).toHaveBeenCalledTimes(1);
-    expect(executeRaw).toHaveBeenCalledTimes(3);
+    expect(queryRaw).not.toHaveBeenCalled();
+    expect(executeRaw).not.toHaveBeenCalled();
   });
 
   it("should map update gasto errors to 500", async () => {

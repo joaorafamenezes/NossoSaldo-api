@@ -89,7 +89,7 @@ describe("UsuarioService", () => {
 
     await expect(usuarioService.criarUsuario(mockUsuarioData)).rejects.toHaveProperty(
       "message",
-      "UsuÃ¡rio jÃ¡ existe com esse email no banco de dados.",
+      "Usuario ja existe com esse email no banco de dados.",
     );
   });
 
@@ -148,7 +148,7 @@ describe("UsuarioService", () => {
 
     await expect(usuarioService.login(loginData)).rejects.toHaveProperty(
       "message",
-      "NÃ£o foi possÃ­vel gerar o token.",
+      "Nao foi possivel gerar o token.",
     );
   });
 
@@ -198,7 +198,7 @@ describe("UsuarioService", () => {
 
     await expect(usuarioService.atualizaUsuario("1", { nome: "Joao Atualizado" })).rejects.toHaveProperty(
       "message",
-      "NÃ£o foi possÃ­vel atualizar o usuÃ¡rio.",
+      "Nao foi possivel atualizar o usuario.",
     );
   });
 
@@ -231,7 +231,7 @@ describe("UsuarioService", () => {
 
     await expect(usuarioService.atualizaSenhaUsuario("1", "novaSenha123")).rejects.toHaveProperty(
       "message",
-      "NÃ£o foi possÃ­vel atualizar a senha do usuÃ¡rio.",
+      "Nao foi possivel atualizar a senha do usuario.",
     );
   });
 

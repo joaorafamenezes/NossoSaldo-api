@@ -5,6 +5,7 @@ jest.mock("@prisma/client", () => {
     create: jest.fn(),
     findFirst: jest.fn(),
     findMany: jest.fn(),
+    update: jest.fn(),
   };
   const mockExecuteRaw = jest.fn();
   const mockQueryRaw = jest.fn();
@@ -152,8 +153,7 @@ describe("ContaConjuntaRepository", () => {
 
   it("should soft delete conta conjunta successfully", async () => {
     const deletedAt = new Date("2026-05-05T12:00:00.000Z");
-    mockPrisma.$executeRaw.mockResolvedValue(1);
-    mockPrisma.$queryRaw.mockResolvedValue([{ id: "conta-1", deletedAt }]);
+    mockPrisma.contaConjunta.update.mockResolvedValue({ id: "conta-1", deletedAt });
 
     await expect(contaConjuntaRepository.desvincularContaConjunta("conta-1")).resolves.toEqual({
       id: "conta-1",

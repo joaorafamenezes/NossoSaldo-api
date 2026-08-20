@@ -4,6 +4,10 @@ let mockPrisma: any;
 
 jest.mock("@prisma/client", () => {
   mockPrisma = {
+    categoria: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+    },
     $executeRaw: jest.fn(),
     $queryRaw: jest.fn(),
   };
@@ -21,10 +25,7 @@ describe("CategoriaRepository", () => {
   });
 
   it("should create category with correct payload", async () => {
-    mockPrisma.$executeRaw.mockResolvedValue(1);
-    mockPrisma.$queryRaw.mockResolvedValue([
-      { id: "cat-1", descricao: "Alimentacao", iconName: "🍔" },
-    ]);
+    mockPrisma.categoria.create.mockResolvedValue({ id: "cat-1", descricao: "Alimentacao", iconName: "🍔" });
 
     await expect(
       categoriaRepository.criarCategoria({ descricao: "Alimentacao", iconName: "🍔" })
@@ -36,7 +37,7 @@ describe("CategoriaRepository", () => {
   });
 
   it("should map repository errors on create to 500", async () => {
-    mockPrisma.$executeRaw.mockRejectedValue(new Error("Database unavailable"));
+    mockPrisma.categoria.create.mockRejectedValue(new Error("Database unavailable"));
 
     await expect(
       categoriaRepository.criarCategoria({ descricao: "Alimentacao", iconName: "🍔" })
@@ -47,7 +48,7 @@ describe("CategoriaRepository", () => {
   });
 
   it("should map repository errors on list to 500", async () => {
-    mockPrisma.$queryRaw.mockRejectedValue(new Error("Database unavailable"));
+    mockPrisma.categoria.findMany.mockRejectedValue(new Error("Database unavailable"));
 
     await expect(categoriaRepository.buscarTodasCategorias()).rejects.toMatchObject({
       statusCode: 500,
