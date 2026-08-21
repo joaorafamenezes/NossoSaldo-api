@@ -99,4 +99,30 @@ describe("app error middleware", () => {
     );
     expect(response.body.requestId).toEqual(expect.any(String));
   });
+
+  it("should preserve the safe operational message for 503 errors", async () => {
+    jest.doMock("./routers/mainrouter", () => {
+      const express = require("express");
+      const router = express.Router();
+
+      router.get("/service-unavailable", (_req: unknown, _res: unknown, next: (error: Error) => void) => {
+        next(createHttpError(503, "A criptografia das configuracoes de IA nao esta configurada."));
+      });
+
+      return { router };
+    });
+
+    const { app } = await import("./app");
+    const response = await request(app).get(`${API_PREFIX}/service-unavailable`);
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        error: {
+          code: "SERVICE_UNAVAILABLE",
+          message: "A criptografia das configuracoes de IA nao esta configurada.",
+        },
+      }),
+    );
+  });
 });

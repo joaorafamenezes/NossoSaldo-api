@@ -64,6 +64,16 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   );
 
   if (statusCode >= 500) {
+    if (statusCode === 503 && isHttpError(err)) {
+      return res.status(statusCode).json({
+        error: {
+          code: errorCode,
+          message: err.message,
+        },
+        requestId,
+      });
+    }
+
     return res.status(statusCode).json({
       error: {
         code: "INTERNAL_SERVER_ERROR",
