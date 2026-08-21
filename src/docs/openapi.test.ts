@@ -57,6 +57,12 @@ describe("OpenAPI docs", () => {
     expect(response.body.paths).toHaveProperty("/relatorio/topCategoria/{de}/{ate}");
     expect(response.body.paths).toHaveProperty("/relatorio/quemGastaMais/{de}/{ate}");
     expect(response.body.paths).toHaveProperty("/insights/gargalos/{de}/{ate}");
+    expect(response.body.paths).toHaveProperty("/ia/consultas");
+    expect(response.body.paths["/ia/consultas"]).toHaveProperty("post");
+    expect(response.body.paths["/ia/consultas"].post.requestBody.required).toBe(true);
+    expect(response.body.paths).toHaveProperty("/ia/consultas/historico");
+    expect(response.body.paths["/ia/consultas/historico"]).toHaveProperty("get");
+    expect(response.body.paths["/ia/consultas/historico"]).toHaveProperty("delete");
     expect(response.body.components.schemas.CreateGastoRequest.required).toContain("dataVencimento");
     expect(response.body.components.schemas.CreateGastoRequest.properties.dataVencimento.description).toContain("obrigatoria");
     expect(response.body.tags).toEqual(

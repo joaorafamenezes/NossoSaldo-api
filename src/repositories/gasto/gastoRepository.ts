@@ -230,6 +230,7 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
           ],
         },
         include: {
+          categoria: { select: { descricao: true } },
           responsavel: { select: { nome: true } },
           faturaCartao: { select: { competencia: true, status: true } },
           cartaoCredito: {
@@ -266,6 +267,7 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
         cartaoCreditoDescricao: gasto.cartaoCredito?.descricao ?? null,
         cartaoCreditoUsuarioNome: gasto.cartaoCredito?.usuario.nome ?? null,
         cartaoCreditoUsuarioEmail: gasto.cartaoCredito?.usuario.email ?? null,
+        categoriaDescricao: gasto.categoria?.descricao ?? null,
         lancamentosBase: gasto.lancamentosBase.map((lancamento) => ({
           ...lancamento,
           valorParcela: Number(lancamento.valorParcela),

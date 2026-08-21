@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum TipoGasto {
@@ -45,8 +44,38 @@ model Usuario {
   contasComoSegundo       ContaConjunta[]          @relation("Usuario2")
   gastosComoResponsavel   Gasto[]                  @relation("Responsavel")
   cartoesCredito          CartaoCredito[]
+  iaConfiguracao           IaConfiguracao?
+  iaConversas              IaConversa[]
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
+}
+
+model IaConfiguracao {
+  id                 String   @id @default(uuid())
+  usuarioId          String   @unique
+  usuario            Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  provedor           String   @default("openai")
+  modelo             String   @default("gpt-4.1-mini")
+  chaveCriptografada String   @db.Text
+  iv                 String
+  authTag            String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([usuarioId])
+}
+
+model IaConversa {
+  id         String   @id @default(uuid())
+  usuarioId  String
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  pergunta   String   @db.Text
+  resposta   String   @db.Text
+  provedor   String
+  modelo     String
+  createdAt  DateTime @default(now())
+
+  @@index([usuarioId, createdAt])
 }
 
 model EmailVerificationToken {

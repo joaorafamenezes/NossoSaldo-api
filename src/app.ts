@@ -21,6 +21,7 @@ function resolveErrorCode(err: unknown, statusCode: number) {
     404: "NOT_FOUND",
     409: "CONFLICT",
     422: "VALIDATION_ERROR",
+    503: "SERVICE_UNAVAILABLE",
     500: "INTERNAL_SERVER_ERROR",
   };
 

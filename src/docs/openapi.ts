@@ -26,6 +26,7 @@ export const openApiSpec = {
     { name: "Faturas", description: "Operacoes relacionadas a faturas de cartao" },
     { name: "Relatorios", description: "Operacoes relacionadas a relatorios" },
     { name: "Insights", description: "Operacoes relacionadas a analises e gargalos" },
+    { name: "Inteligencia Artificial", description: "Consultas financeiras assistidas por IA" },
   ],
   components: {
     securitySchemes: {
@@ -966,6 +967,103 @@ export const openApiSpec = {
           "200": { description: "Insights gerados com sucesso" },
           "401": { description: "Nao autorizado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "422": { description: "Parametros invalidos", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+    "/ia/consultas": {
+      post: {
+        tags: ["Inteligencia Artificial"],
+        summary: "Consulta os dados financeiros do usuario autenticado com OpenAI",
+        description: "O contexto enviado ao provedor e limitado aos registros do usuario autenticado. A API armazena somente pergunta, resposta, provedor, modelo e data no historico do proprio usuario.",
+        security: [{ AccessTokenAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["pergunta"],
+                properties: {
+                  pergunta: { type: "string", minLength: 3, maxLength: 500, example: "Quais foram minhas maiores despesas?" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Consulta respondida com sucesso" },
+          "401": { description: "Nao autorizado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "422": { description: "Pergunta invalida", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "502": { description: "Falha no provedor de IA", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "503": { description: "Provedor de IA nao configurado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+    "/ia/consultas/historico": {
+      get: {
+        tags: ["Inteligencia Artificial"],
+        summary: "Lista o historico de consultas do usuario autenticado",
+        description: "Retorna no maximo os 50 dialogos mais recentes, sem chaves, tokens ou snapshot dos dados financeiros.",
+        security: [{ AccessTokenAuth: [] }],
+        responses: {
+          "200": { description: "Historico retornado" },
+          "401": { description: "Nao autorizado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      delete: {
+        tags: ["Inteligencia Artificial"],
+        summary: "Remove o historico de consultas do usuario",
+        security: [{ AccessTokenAuth: [] }],
+        responses: {
+          "200": { description: "Historico removido" },
+          "401": { description: "Nao autorizado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+    "/ia/configuracao": {
+      get: {
+        tags: ["Inteligencia Artificial"],
+        summary: "Consulta o status da configuracao de IA do usuario",
+        security: [{ AccessTokenAuth: [] }],
+        responses: {
+          "200": { description: "Status da configuracao" },
+          "401": { description: "Nao autorizado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      put: {
+        tags: ["Inteligencia Artificial"],
+        summary: "Configura a chave OpenAI do usuario",
+        description: "A chave e armazenada criptografada e nunca e devolvida pela API.",
+        security: [{ AccessTokenAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["apiKey"],
+                properties: {
+                  apiKey: { type: "string", format: "password", minLength: 20, maxLength: 300 },
+                  modelo: { type: "string", example: "gpt-4.1-mini" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Configuracao salva" },
+          "401": { description: "Nao autorizado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "422": { description: "Chave invalida", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "503": { description: "Criptografia nao configurada", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      delete: {
+        tags: ["Inteligencia Artificial"],
+        summary: "Remove a chave OpenAI do usuario",
+        security: [{ AccessTokenAuth: [] }],
+        responses: {
+          "200": { description: "Configuracao removida" },
+          "401": { description: "Nao autorizado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
         },
       },
     },
