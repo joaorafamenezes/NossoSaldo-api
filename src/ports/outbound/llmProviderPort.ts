@@ -8,7 +8,7 @@ export type LlmFunctionTool = {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
-  strict: true;
+  strict: boolean;
 };
 
 export type LlmFunctionRequest = {

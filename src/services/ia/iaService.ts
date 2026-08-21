@@ -38,7 +38,8 @@ const financialTools: LlmFunctionTool[] = [
       required: [],
       additionalProperties: false,
     },
-    strict: true,
+    // Os filtros sao opcionais; a validacao final acontece antes da execucao.
+    strict: false,
   },
   {
     type: "function",
@@ -56,7 +57,7 @@ const financialTools: LlmFunctionTool[] = [
       required: [],
       additionalProperties: false,
     },
-    strict: true,
+    strict: false,
   },
   {
     type: "function",
@@ -72,7 +73,7 @@ const financialTools: LlmFunctionTool[] = [
       required: [],
       additionalProperties: false,
     },
-    strict: true,
+    strict: false,
   },
 ];
 
