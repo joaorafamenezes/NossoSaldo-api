@@ -11,7 +11,23 @@ import { SecretCipher, secretCipher } from "../../adapters/outbound/secrets/secr
 type GastoRepository = Pick<typeof gastoRepository, "listarGastosPorResponsavelId">;
 
 function serializeGasto(gasto: any) {
-  return {
+  const categoria = gasto.categoriaDescricao ?? gasto.categoria?.descricao ?? null;
+
+  if (Array.isArray(gasto.lancamentosBase) && gasto.lancamentosBase.length > 0) {
+    return gasto.lancamentosBase.map((parcela: any) => ({
+      descricao: `${gasto.descricao} - parcela ${parcela.numeroParcela}/${gasto.numeroParcelas}`,
+      tipo: gasto.tipo,
+      status: parcela.status,
+      valor: Number(parcela.valorParcela),
+      competencia: parcela.competencia,
+      dataVencimento: parcela.dataVencimentoParcela,
+      dataPagamento: parcela.dataPagamentoParcela ?? null,
+      categoriaId: gasto.categoriaId ?? null,
+      categoria,
+    }));
+  }
+
+  return [{
     descricao: gasto.descricao,
     tipo: gasto.tipo,
     status: gasto.status,
@@ -20,8 +36,8 @@ function serializeGasto(gasto: any) {
     dataVencimento: gasto.dataVencimento,
     dataPagamento: gasto.dataPagamento ?? null,
     categoriaId: gasto.categoriaId ?? null,
-    categoria: gasto.categoriaDescricao ?? gasto.categoria?.descricao ?? null,
-  };
+    categoria,
+  }];
 }
 
 const financialTools: LlmFunctionTool[] = [
@@ -182,7 +198,7 @@ export class IaService {
     const provider = this.providerFactory(chave, configuracao.modelo);
     const gastos = await this.gastos.listarGastosPorResponsavelId(usuarioId);
     const registrosDoUsuario = gastos.filter((gasto) => gasto.responsavelId === usuarioId);
-    const registros = registrosDoUsuario.map(serializeGasto);
+    const registros = registrosDoUsuario.flatMap(serializeGasto);
 
     if (!provider.responderComFuncoes) {
       throw createHttpError(503, "O provedor configurado nao suporta consultas por funcoes.");
