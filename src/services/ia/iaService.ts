@@ -93,6 +93,34 @@ const financialTools: LlmFunctionTool[] = [
   },
 ];
 
+const nossoSaldoTerms = [
+  "gasto", "despesa", "receita", "pagamento", "parcela", "fatura", "cartao", "categoria",
+  "saldo", "conta", "financeir", "vencimento", "pendente", "atrasad", "pago", "registro",
+  "orcamento", "econom", "total", "quanto", "mes", "ano",
+];
+
+const blockedExternalTerms = [
+  "internet", "pesquise", "pesquisa na web", "noticia", "notícias", "clima", "cotacao", "cotaçao",
+  "futebol", "politica", "política", "programacao", "programação", "codigo", "código", "senha",
+  "api key", "chave da api", "ignore as instrucoes", "ignore as instruções", "prompt do sistema",
+];
+
+function validateQuestionScope(pergunta: string) {
+  const normalized = pergunta.trim().toLocaleLowerCase("pt-BR");
+
+  if (normalized.length < 3) {
+    throw createHttpError(422, "Informe uma pergunta sobre seus dados financeiros no NossoSaldo.");
+  }
+
+  if (blockedExternalTerms.some((term) => normalized.includes(term))) {
+    throw createHttpError(422, "Posso ajudar apenas com informacoes financeiras disponiveis na sua conta do NossoSaldo.");
+  }
+
+  if (!nossoSaldoTerms.some((term) => normalized.includes(term))) {
+    throw createHttpError(422, "Posso ajudar apenas com informacoes financeiras disponiveis na sua conta do NossoSaldo.");
+  }
+}
+
 function parseArguments(argumentsJson: string) {
   const parsed = JSON.parse(argumentsJson) as Record<string, any>;
   const dateFields = ["de", "ate"];
@@ -184,6 +212,7 @@ export class IaService {
   }
 
   async consultar(pergunta: string, usuarioId: string) {
+    validateQuestionScope(pergunta);
     const configuracao = await this.configuracoes.buscarPorUsuarioId(usuarioId);
 
     if (!configuracao) {
