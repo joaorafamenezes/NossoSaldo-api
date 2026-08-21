@@ -7,7 +7,7 @@
     "prisma:generate": "npm run prisma:prepare && prisma generate",
     "db:sync": "npm run prisma:prepare && ts-node src/scripts/applySchema.ts",
     "dev": "npm run prisma:prepare && npm run db:ensure:local && npm run db:sync && nodemon --watch src --ext ts --exec ts-node src/server.ts",
-    "build": "npm run prisma:prepare && tsc",
+    "build": "npm run prisma:generate && tsc",
     "start": "npm run prisma:prepare && node dist/server.js",
     "lint": "eslint . --ext .ts",
     "db:ensure": "npm run db:ensure:local",
