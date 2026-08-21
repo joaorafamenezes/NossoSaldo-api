@@ -64,7 +64,7 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   );
 
   if (statusCode >= 500) {
-    if (statusCode === 503 && isHttpError(err)) {
+    if ((statusCode === 502 || statusCode === 503) && isHttpError(err)) {
       return res.status(statusCode).json({
         error: {
           code: errorCode,

@@ -12,6 +12,32 @@ type OpenAiResponse = {
   }>;
 };
 
+type OpenAiErrorResponse = {
+  error?: {
+    code?: string;
+    type?: string;
+  };
+};
+
+async function throwProviderError(response: Response): Promise<never> {
+  const payload = await response.json().catch(() => null) as OpenAiErrorResponse | null;
+  const code = payload?.error?.code ?? payload?.error?.type;
+
+  if (response.status === 401 || response.status === 403 || code === "invalid_api_key") {
+    throw createHttpError(502, "A chave da OpenAI foi rejeitada. Verifique se ela esta ativa e pertence ao projeto correto.");
+  }
+
+  if (response.status === 429) {
+    throw createHttpError(502, "A OpenAI informou que o limite de uso ou os creditos do projeto foram excedidos.");
+  }
+
+  if (response.status === 404) {
+    throw createHttpError(502, "O modelo selecionado nao esta disponivel para esta chave da OpenAI.");
+  }
+
+  throw createHttpError(502, "A OpenAI rejeitou a consulta. Verifique a configuracao do provedor e tente novamente.");
+}
+
 const systemInstructions = [
   "Voce e o assistente financeiro do NossoSaldo.",
   "Responda em portugues do Brasil, de forma objetiva e didatica.",
@@ -47,9 +73,7 @@ export class OpenAiProvider implements LlmProviderPort {
       }),
     });
 
-    if (!response.ok) {
-      throw createHttpError(502, "Nao foi possivel consultar o provedor de inteligencia artificial.");
-    }
+    if (!response.ok) await throwProviderError(response);
 
     const payload = (await response.json()) as OpenAiResponse;
     const outputText = payload.output_text ?? payload.output?.flatMap((item) => item.content ?? []).find((content) => content.type === "output_text")?.text;
@@ -89,9 +113,7 @@ export class OpenAiProvider implements LlmProviderPort {
         }),
       });
 
-      if (!response.ok) {
-        throw createHttpError(502, "Nao foi possivel consultar o provedor de inteligencia artificial.");
-      }
+      if (!response.ok) await throwProviderError(response);
 
       const payload = (await response.json()) as OpenAiResponse;
       const functionCalls = (payload.output ?? []).filter((item) => item.type === "function_call");

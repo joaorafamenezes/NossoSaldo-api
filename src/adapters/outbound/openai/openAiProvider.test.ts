@@ -23,6 +23,20 @@ describe("OpenAiProvider", () => {
     await expect(provider.responder({ question: "Teste", context: "{}" })).rejects.toMatchObject({ statusCode: 503 });
   });
 
+  it("informa quando a OpenAI rejeita a chave configurada", async () => {
+    const fetcher = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: { code: "invalid_api_key" } }),
+    });
+    const provider = new OpenAiProvider("test-key", "test-model", fetcher);
+
+    await expect(provider.responder({ question: "Quanto gastei?", context: "{}" })).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining("chave da OpenAI foi rejeitada"),
+    });
+  });
+
   it("executa apenas a funcao autorizada pelo aplicativo e envia o resultado ao modelo", async () => {
     const fetcher = jest.fn()
       .mockResolvedValueOnce({
