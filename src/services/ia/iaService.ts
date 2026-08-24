@@ -12,6 +12,11 @@ type GastoRepository = Pick<typeof gastoRepository, "listarGastosPorResponsavelI
 
 function serializeGasto(gasto: any) {
   const categoria = gasto.categoriaDescricao ?? gasto.categoria?.descricao ?? null;
+  const cartaoCredito = gasto.cartaoCreditoDescricao ?? null;
+  const faturaCartao = {
+    competencia: gasto.faturaCartaoCompetencia ?? null,
+    status: gasto.faturaCartaoStatus ?? null,
+  };
 
   if (Array.isArray(gasto.lancamentosBase) && gasto.lancamentosBase.length > 0) {
     return gasto.lancamentosBase.map((parcela: any) => ({
@@ -24,6 +29,11 @@ function serializeGasto(gasto: any) {
       dataPagamento: parcela.dataPagamentoParcela ?? null,
       categoriaId: gasto.categoriaId ?? null,
       categoria,
+      cartaoCredito,
+      faturaCartao: {
+        competencia: parcela.faturaCartaoCompetencia ?? faturaCartao.competencia,
+        status: parcela.faturaCartaoStatus ?? faturaCartao.status,
+      },
     }));
   }
 
@@ -37,6 +47,8 @@ function serializeGasto(gasto: any) {
     dataPagamento: gasto.dataPagamento ?? null,
     categoriaId: gasto.categoriaId ?? null,
     categoria,
+    cartaoCredito,
+    faturaCartao,
   }];
 }
 
@@ -60,7 +72,7 @@ const financialTools: LlmFunctionTool[] = [
   {
     type: "function",
     name: "listar_gastos",
-    description: "Lista gastos do usuario, podendo filtrar por periodo de vencimento, status e tipo. Nunca informe usuarioId.",
+    description: "Lista gastos do usuario, podendo filtrar por periodo de vencimento, status, tipo e nome do cartao. Nunca informe usuarioId.",
     parameters: {
       type: "object",
       properties: {
@@ -68,6 +80,7 @@ const financialTools: LlmFunctionTool[] = [
         ate: { type: "string", description: "Data final YYYY-MM-DD." },
         status: { type: "string", enum: ["pendente", "pago", "atrasado", "cancelado"] },
         tipo: { type: "string", enum: ["receita", "despesa"] },
+        cartao: { type: "string", description: "Parte do nome do cartao de credito, como Nubank." },
         limite: { type: "integer", minimum: 1, maximum: 50 },
       },
       required: [],
@@ -151,6 +164,7 @@ function filterRecords(records: any[], args: Record<string, any>) {
     if (args.ate && (!dueDate || dueDate > args.ate)) return false;
     if (args.status && record.status !== args.status) return false;
     if (args.tipo && record.tipo !== args.tipo) return false;
+    if (args.cartao && !String(record.cartaoCredito ?? "").toLocaleLowerCase("pt-BR").includes(String(args.cartao).toLocaleLowerCase("pt-BR"))) return false;
     return true;
   });
 }

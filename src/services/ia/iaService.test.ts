@@ -25,7 +25,7 @@ describe("IaService", () => {
   it("envia ao provedor somente os registros do usuario autenticado", async () => {
     const gastoRepository = {
       listarGastosPorResponsavelId: jest.fn().mockResolvedValue([
-        { responsavelId: "user-1", descricao: "Mercado", valor: 100, status: "pago" },
+        { responsavelId: "user-1", descricao: "Mercado", valor: 100, status: "pago", cartaoCreditoDescricao: "Nubank" },
         { responsavelId: "user-2", descricao: "Outro usuario", valor: 999, status: "pago" },
       ]),
     };
@@ -34,6 +34,7 @@ describe("IaService", () => {
       responderComFuncoes: jest.fn().mockImplementation(async ({ execute }: { execute: (name: string, args: string) => Promise<unknown> }) => {
         const resultado = await execute("listar_gastos", "{}");
         expect(JSON.stringify(resultado)).toContain("Mercado");
+        expect(JSON.stringify(resultado)).toContain("Nubank");
         expect(JSON.stringify(resultado)).not.toContain("Outro usuario");
         return "Resposta";
       }),
@@ -104,5 +105,27 @@ describe("IaService", () => {
     const service = new IaService(gastoRepository, jest.fn().mockReturnValue(provider), configuracoes as any, { decrypt: jest.fn().mockReturnValue("sk-user-key") } as any, conversas as any);
 
     await expect(service.consultar("Quais pagamentos estao pendentes em agosto?", "user-1")).resolves.toMatchObject({ resposta: "Existe uma parcela pendente em agosto." });
+  });
+
+  it("filtra gastos pelo cartao informado sem acessar registros de outro usuario", async () => {
+    const gastoRepository = {
+      listarGastosPorResponsavelId: jest.fn().mockResolvedValue([
+        { responsavelId: "user-1", descricao: "Mercado Nubank", valor: 100, status: "pago", cartaoCreditoDescricao: "Nubank" },
+        { responsavelId: "user-1", descricao: "Compra Inter", valor: 200, status: "pago", cartaoCreditoDescricao: "Inter" },
+      ]),
+    };
+    const provider = {
+      responder: jest.fn(),
+      responderComFuncoes: jest.fn().mockImplementation(async ({ execute }: { execute: (name: string, args: string) => Promise<unknown> }) => {
+        const resultado = await execute("listar_gastos", JSON.stringify({ cartao: "Nubank" }));
+        expect(resultado).toEqual([expect.objectContaining({ descricao: "Mercado Nubank", cartaoCredito: "Nubank" })]);
+        return "Voce gastou R$ 100,00 no Nubank.";
+      }),
+    };
+    const configuracoes = { buscarPorUsuarioId: jest.fn().mockResolvedValue({ provedor: "openai", modelo: "test-model", chaveCriptografada: "encrypted", iv: "iv", authTag: "tag" }) };
+    const conversas = { criar: jest.fn().mockResolvedValue({ id: "history-card", createdAt: new Date() }), listarPorUsuarioId: jest.fn(), removerPorUsuarioId: jest.fn() };
+    const service = new IaService(gastoRepository, jest.fn().mockReturnValue(provider), configuracoes as any, { decrypt: jest.fn().mockReturnValue("sk-user-key") } as any, conversas as any);
+
+    await expect(service.consultar("Quanto gastei no cartao Nubank?", "user-1")).resolves.toMatchObject({ resposta: "Voce gastou R$ 100,00 no Nubank." });
   });
 });
