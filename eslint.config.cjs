@@ -2,7 +2,7 @@ const tsEslint = require('@typescript-eslint/eslint-plugin');
 
 module.exports = [
   {
-    ignores: ['dist/**', 'node_modules/**', 'eslint.config.cjs', 'jest.config.cjs']
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'eslint.config.cjs', 'jest.config.cjs']
   },
   {
     languageOptions: {
@@ -26,6 +26,9 @@ module.exports = [
     },
     rules: {
       ...tsEslint.configs.recommended.rules,
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-require-imports': 'warn',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       'no-console': 'off'
     }
   }

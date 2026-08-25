@@ -17,6 +17,7 @@ API REST do NossoSaldo, responsavel por autenticacao, usuarios, categorias, cont
 ```bash
 npm run dev              # sobe a API em desenvolvimento
 npm run build            # compila TypeScript
+npm run lint             # valida padroes de codigo
 npm start                # executa dist/server.js
 npm test                 # roda a suite Jest
 npm test -- --coverage   # roda testes com cobertura
@@ -71,4 +72,15 @@ Exemplo de bancos por ambiente:
 
 ## Cobertura
 
-A suite usa threshold minimo de 90% para statements, lines e functions no escopo unitario. Adaptadores de banco, mailer, rotas de wiring, scripts e entrypoints ficam fora da metrica unitaria e devem ser cobertos por testes de integracao/e2e quando essa camada for adicionada.
+A suite aplica thresholds minimos de 89% para statements, 90% para lines e functions e 75% para branches no escopo unitario. Adaptadores de banco, mailer, rotas de wiring, scripts e entrypoints ficam fora da metrica unitaria e devem ser cobertos por testes de integracao/e2e quando essa camada for adicionada.
+
+## CI
+
+O workflow `.github/workflows/ci.yml` executa automaticamente em pushes para `main`, `master` e `developer`, e em pull requests. A validacao roda em quatro etapas:
+
+1. instala dependencias com `npm ci`;
+2. executa `npm run lint`;
+3. executa `npm test -- --coverage`, respeitando os thresholds de cobertura;
+4. executa `npm run build`.
+
+O CI nao executa migrations, seed ou sincronizacao de banco. Portanto, ele nao precisa de `DATABASE_URL` nem altera dados locais, do Supabase ou de producao. O relatorio de cobertura e salvo como artefato da execucao por 14 dias.

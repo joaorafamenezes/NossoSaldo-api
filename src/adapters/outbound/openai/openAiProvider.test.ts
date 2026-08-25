@@ -62,4 +62,64 @@ describe("OpenAiProvider", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
     expect(fetcher.mock.calls[1][1].body).toContain("function_call_output");
   });
+
+  it.each([
+    [403, { error: { type: "forbidden" } }, "chave da OpenAI foi rejeitada"],
+    [404, { error: { code: "model_not_found" } }, "modelo selecionado"],
+    [429, { error: { type: "rate_limit" } }, "limite de uso"],
+    [500, null, "rejeitou a consulta"],
+  ])("mapeia erros HTTP %s do provedor", async (status, payload, message) => {
+    const fetcher = jest.fn().mockResolvedValue({ ok: false, status, json: async () => payload });
+    const provider = new OpenAiProvider("test-key", "test-model", fetcher);
+
+    await expect(provider.responder({ question: "Quanto gastei?", context: "{}" })).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining(message),
+    });
+  });
+
+  it("aceita texto no formato alternativo de output e remove espacos", async () => {
+    const fetcher = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ output: [{ content: [{ type: "output_text", text: "  resposta alternativa  " }] }] }),
+    });
+    const provider = new OpenAiProvider("test-key", "test-model", fetcher);
+
+    await expect(provider.responder({ question: "Quanto gastei?", context: "{}" })).resolves.toBe("resposta alternativa");
+  });
+
+  it("recusa resposta sem texto e consulta por funcoes sem chave", async () => {
+    const provider = new OpenAiProvider("test-key", "test-model", jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
+    await expect(provider.responder({ question: "Quanto gastei?", context: "{}" })).rejects.toMatchObject({ statusCode: 502 });
+
+    const withoutKey = new OpenAiProvider(undefined, "test-model", jest.fn());
+    await expect(withoutKey.responderComFuncoes({ question: "Quanto gastei?", tools: [], execute: jest.fn() })).rejects.toMatchObject({ statusCode: 503 });
+
+    const functionProvider = new OpenAiProvider("test-key", "test-model", jest.fn().mockResolvedValue({ ok: true, json: async () => ({ output: [{}] }) }));
+    await expect(functionProvider.responderComFuncoes({ question: "Quanto gastei?", tools: [], execute: jest.fn() })).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("converte falha da funcao em resultado de erro para o modelo", async () => {
+    const fetcher = jest.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ output: [{ type: "function_call", name: "listar_gastos", call_id: "call-1", arguments: "{}" }] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ output_text: "Nao foi possivel consultar." }) });
+    const provider = new OpenAiProvider("test-key", "test-model", fetcher);
+
+    await expect(provider.responderComFuncoes({ question: "Liste meus gastos", tools: [], execute: jest.fn().mockRejectedValue(new Error("falha controlada")) })).resolves.toBe("Nao foi possivel consultar.");
+    expect(fetcher.mock.calls[1][1].body).toContain("falha controlada");
+  });
+
+  it("rejeita chamadas de funcao incompletas e excesso de tentativas", async () => {
+    const invalidCall = new OpenAiProvider("test-key", "test-model", jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ output: [{ type: "function_call", name: "listar_gastos", arguments: "{}" }] }),
+    }));
+    await expect(invalidCall.responderComFuncoes({ question: "Liste", tools: [], execute: jest.fn() })).rejects.toMatchObject({ statusCode: 502 });
+
+    const repeatedCalls = new OpenAiProvider("test-key", "test-model", jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ output: [{ type: "function_call", name: "listar_gastos", call_id: "call-1", arguments: "{}" }] }),
+    }));
+    await expect(repeatedCalls.responderComFuncoes({ question: "Liste", tools: [], execute: jest.fn() })).rejects.toMatchObject({ statusCode: 502 });
+  });
 });

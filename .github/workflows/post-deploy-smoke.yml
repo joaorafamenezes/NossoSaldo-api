@@ -1,0 +1,36 @@
+name: API Post-deploy Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: "URL base da API publicada, sem barra final"
+        required: true
+        default: "https://nossosaldo-api.onrender.com"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Check public API
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check health endpoint
+        env:
+          API_URL: ${{ inputs.api_url }}
+        run: |
+          response=$(curl --silent --show-error --location --retry 3 --retry-delay 5 --write-out '%{http_code}' --output /tmp/health.json "$API_URL/health")
+          test "$response" = "200"
+          grep -q '"status"' /tmp/health.json
+
+      - name: Check OpenAPI endpoint
+        env:
+          API_URL: ${{ inputs.api_url }}
+        run: |
+          response=$(curl --silent --show-error --location --retry 3 --retry-delay 5 --write-out '%{http_code}' --output /tmp/openapi.json "$API_URL/api/v1/docs/openapi.json")
+          test "$response" = "200"
+          grep -q '"openapi"' /tmp/openapi.json
+          grep -q '"/api/v1' /tmp/openapi.json
