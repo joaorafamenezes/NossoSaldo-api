@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
@@ -13,9 +14,19 @@ if (!connectionString) {
   throw new Error("DATABASE_URL nao configurada");
 }
 
-const adapter = new PrismaPg({ connectionString });
+const databaseProvider = (process.env.DATABASE_PROVIDER ?? "postgresql").toLowerCase();
 
-export const prisma = globalThis.__nossoSaldoPrisma__ ?? new PrismaClient({ adapter });
+if (databaseProvider !== "postgresql" && databaseProvider !== "mysql") {
+  throw new Error("DATABASE_PROVIDER invalido. Use mysql ou postgresql.");
+}
+
+const adapter = databaseProvider === "mysql"
+  ? new PrismaMariaDb(connectionString)
+  : new PrismaPg({ connectionString });
+
+// O schema e gerado dinamicamente para o provider configurado antes do build.
+// O cast permite que o mesmo modulo suporte os dois adaptadores em tempo de execucao.
+export const prisma = globalThis.__nossoSaldoPrisma__ ?? new PrismaClient({ adapter: adapter as never });
 
 if (process.env.NODE_ENV !== "production") {
   globalThis.__nossoSaldoPrisma__ = prisma;
