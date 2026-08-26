@@ -13,7 +13,7 @@ const router = Router();
 
 router.get("/health", (_req, res) => {
     res.status(200).json({
-        message: "API 'NossoSaldo' funcionando corretamente.",
+        message: "A API 'NossoSaldo' funcionando corretamente. Seguimos...",
     });
 });
 
