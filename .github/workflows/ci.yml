@@ -20,6 +20,11 @@ jobs:
   validate:
     name: Validate API
     runs-on: ubuntu-latest
+    env:
+      # Valores sintéticos para inicialização dos módulos durante os testes.
+      # Nenhum teste do CI deve acessar banco ou segredo de produção.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nossosaldo_test
+      JWT_EXPIRES: 3600
 
     steps:
       - name: Checkout
@@ -33,6 +38,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Prepare test keys
+        run: |
+          openssl genrsa -out keys/private.key 2048
+          openssl rsa -in keys/private.key -pubout -out keys/public.key
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
 
       - name: Lint
         run: npm run lint
