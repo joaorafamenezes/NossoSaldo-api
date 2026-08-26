@@ -84,3 +84,21 @@ O workflow `.github/workflows/ci.yml` executa automaticamente em pushes para `ma
 4. executa `npm run build`.
 
 O CI nao executa migrations, seed ou sincronizacao de banco. Portanto, ele nao precisa de `DATABASE_URL` nem altera dados locais, do Supabase ou de producao. O relatorio de cobertura e salvo como artefato da execucao por 14 dias.
+
+## Testes integrados
+
+A suite integrada fica separada dos testes unitarios e exercita o fluxo HTTP completo de gastos contra um PostgreSQL real. Ela cobre criacao/listagem, pagamento e reabertura, incluindo a persistencia final no banco.
+
+Pre-requisitos locais:
+
+- PostgreSQL de testes separado do banco de desenvolvimento e de producao; ou Docker Desktop em execucao.
+- `DATABASE_URL` e `DIRECT_URL` apontando para esse banco de testes.
+- chaves JWT de teste em `keys/private.key` e `keys/public.key`.
+
+Com as variaveis de ambiente configuradas, execute:
+
+```bash
+npm run test:integration
+```
+
+O CI sobe automaticamente um servico `postgres:16`, aplica as migrations e executa essa suite. Nenhum teste integrado usa Supabase ou dados de producao.

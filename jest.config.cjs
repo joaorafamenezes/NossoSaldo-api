@@ -6,7 +6,7 @@ module.exports = {
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.json' }]
   },
-  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/src/integration/'],
   cacheDirectory: '<rootDir>/.jest-cache',
   coveragePathIgnorePatterns: [
     '/node_modules/',
