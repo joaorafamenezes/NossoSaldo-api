@@ -69,22 +69,22 @@ jobs:
     name: Integration tests
     runs-on: ubuntu-latest
     services:
-      postgres:
-        image: postgres:16
+      mysql:
+        image: mysql:8.4
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: nossosaldo_test
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: nossosaldo_test
         ports:
-          - 5432:5432
+          - 3306:3306
         options: >-
-          --health-cmd "pg_isready -U postgres -d nossosaldo_test"
+          --health-cmd "mysqladmin ping -h localhost -uroot -proot"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nossosaldo_test
-      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/nossosaldo_test
+      DATABASE_PROVIDER: mysql
+      DATABASE_URL: mysql://root:root@localhost:3306/nossosaldo_test
+      DIRECT_URL: mysql://root:root@localhost:3306/nossosaldo_test
       JWT_EXPIRES: 3600
       REQUIRE_EMAIL_VERIFICATION: false
       NODE_ENV: test

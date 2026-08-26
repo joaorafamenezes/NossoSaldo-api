@@ -87,12 +87,12 @@ O CI nao executa migrations, seed ou sincronizacao de banco. Portanto, ele nao p
 
 ## Testes integrados
 
-A suite integrada fica separada dos testes unitarios e exercita o fluxo HTTP completo de gastos contra um PostgreSQL real. Ela cobre criacao/listagem, pagamento e reabertura, incluindo a persistencia final no banco.
+A suite integrada fica separada dos testes unitarios e exercita o fluxo HTTP completo de gastos contra um MySQL real. Ela cobre criacao/listagem, pagamento e reabertura, incluindo a persistencia final no banco.
 
 Pre-requisitos locais:
 
-- PostgreSQL de testes separado do banco de desenvolvimento e de producao; ou Docker Desktop em execucao.
-- `DATABASE_URL` e `DIRECT_URL` apontando para esse banco de testes.
+- MySQL de testes separado do banco de desenvolvimento e de producao; ou Docker Desktop em execucao.
+- `DATABASE_PROVIDER=mysql`, `DATABASE_URL` e `DIRECT_URL` apontando para esse banco de testes.
 - chaves JWT de teste em `keys/private.key` e `keys/public.key`.
 
 Com as variaveis de ambiente configuradas, execute:
@@ -101,4 +101,4 @@ Com as variaveis de ambiente configuradas, execute:
 npm run test:integration
 ```
 
-O CI sobe automaticamente um servico `postgres:16`, aplica as migrations e executa essa suite. Nenhum teste integrado usa Supabase ou dados de producao.
+O CI sobe automaticamente um servico `mysql:8.4`, aplica as migrations e executa essa suite. Nenhum teste integrado usa Supabase ou dados de producao.
