@@ -32,11 +32,17 @@ enum StatusFaturaCartao {
   cancelada
 }
 
+enum PerfilUsuario {
+  ADMIN
+  USUARIO
+}
+
 model Usuario {
   id                      String                   @id @default(uuid())
   nome                    String
   email                   String                   @unique
   senha                   String
+  perfil                  PerfilUsuario            @default(USUARIO)
   emailVerifiedAt         DateTime?
   passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
@@ -109,25 +115,31 @@ model ContaConjunta {
 model Categoria {
   id        String   @id @default(uuid())
   descricao String
-  iconName  String   @default("ðŸ·ï¸")
+  iconName  String   @default("🏷️")
+  cor       String   @default("#10b981")
+  teto      Decimal? @db.Decimal(10, 2)
   gastos    Gasto[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model CartaoCredito {
-  id            String         @id @default(uuid())
-  descricao     String
-  diaFechamento Int
-  diaVencimento Int
-  valorLimite   Decimal        @db.Decimal(10, 2)
-  observacoes   String?        @db.Text
-  usuarioId     String
-  usuario       Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  gastos        Gasto[]
-  faturas       FaturaCartao[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id             String         @id @default(uuid())
+  descricao      String
+  diaFechamento  Int
+  diaVencimento  Int
+  valorLimite    Decimal        @db.Decimal(10, 2)
+  cor            String?        @default("from-purple-900 via-indigo-950 to-black")
+  corGradiente   String?        @default("from-purple-900 via-indigo-950 to-black")
+  ultimosDigitos String?        @db.VarChar(4)
+  bandeira       String?        @default("mastercard")
+  observacoes    String?        @db.Text
+  usuarioId      String
+  usuario        Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  gastos         Gasto[]
+  faturas        FaturaCartao[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@index([usuarioId])
 }

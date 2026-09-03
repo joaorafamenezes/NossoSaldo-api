@@ -11,8 +11,14 @@ export type LlmFunctionTool = {
   strict: boolean;
 };
 
+export type LlmMensagemHistorico = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 export type LlmFunctionRequest = {
   question: string;
+  history?: LlmMensagemHistorico[];
   tools: LlmFunctionTool[];
   execute: (name: string, argumentsJson: string) => Promise<unknown>;
 };

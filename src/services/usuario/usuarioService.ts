@@ -96,7 +96,7 @@ export class UsuarioService {
       return null;
     }
 
-    const token = await authorization.sign(usuario.id);
+    const token = await authorization.sign(usuario.id, (usuario as any).perfil || "USUARIO");
 
     if (!token) {
       throw createHttpError(500, "Nao foi possivel gerar o token.");

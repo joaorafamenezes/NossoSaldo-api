@@ -1,9 +1,10 @@
+import "dotenv/config";
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 import createHttpError from "http-errors";
 
 const algorithm = "aes-256-gcm";
 
-function encryptionKey() {
+function encryptionKey(): Buffer {
   const value = process.env.IA_ENCRYPTION_KEY;
 
   if (!value || !/^[a-fA-F0-9]{64}$/.test(value)) {

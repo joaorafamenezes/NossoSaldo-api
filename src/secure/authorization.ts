@@ -37,7 +37,7 @@ function resolveJwtKey(envName: "JWT_PRIVATE_KEY" | "JWT_PUBLIC_KEY", fileName: 
 const privateKey = resolveJwtKey("JWT_PRIVATE_KEY", "private.key");
 const publicKey = resolveJwtKey("JWT_PUBLIC_KEY", "public.key");
 
-export type Token = { id: string };
+export type Token = { id: string; perfil?: "ADMIN" | "USUARIO" };
 
 export type VerifyTokenResult =
   | { payload: Token; error: null }
@@ -71,15 +71,15 @@ async function verifyToken(token: string): Promise<VerifyTokenResult> {
       algorithms: [jwtAlgorithm],
     } as VerifyOptions) as Token;
 
-    return { payload: { id: decoded.id }, error: null };
+    return { payload: { id: decoded.id, perfil: decoded.perfil || "USUARIO" }, error: null };
   } catch (error) {
     return { payload: null, error: mapVerifyError(error) };
   }
 }
 
-function sign(id: string) {
+function sign(id: string, perfil: "ADMIN" | "USUARIO" = "USUARIO") {
   try {
-    const payload: Token = { id };
+    const payload: Token = { id, perfil };
 
     return jwt.sign(payload, privateKey, {
       expiresIn: jwtExpires,

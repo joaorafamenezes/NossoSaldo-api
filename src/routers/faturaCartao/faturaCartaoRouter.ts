@@ -11,6 +11,14 @@ faturaCartaoRouter.get("/faturasCartao", validarToken, (req: Request, res: Respo
   faturaCartaoController.listarFaturas(req, res, next).catch(next);
 });
 
+faturaCartaoRouter.get("/faturasCartao/:id/extrato", validarToken, (req: Request, res: Response, next: NextFunction) => {
+  faturaCartaoController.buscarExtratoFatura(req, res, next).catch(next);
+});
+
+faturaCartaoRouter.get("/faturasCartao/:id", validarToken, (req: Request, res: Response, next: NextFunction) => {
+  faturaCartaoController.buscarExtratoFatura(req, res, next).catch(next);
+});
+
 faturaCartaoRouter.patch("/faturasCartao/:id/pagamento", validarToken, validateUser(pagarGastoSchema), (req: Request, res: Response, next: NextFunction) => {
   faturaCartaoController.pagarFatura(req, res, next).catch(next);
 });

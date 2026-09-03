@@ -3,5 +3,9 @@ export default interface iCriarCartaoCredito {
   diaFechamento: number;
   diaVencimento: number;
   valorLimite: number;
+  cor?: string;
+  corGradiente?: string;
+  ultimosDigitos?: string;
+  bandeira?: string;
   observacoes?: string;
 }

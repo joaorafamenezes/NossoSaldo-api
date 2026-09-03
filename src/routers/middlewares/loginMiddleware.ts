@@ -1,13 +1,14 @@
 import { NextFunction, Request, Response } from "express";
 import createHttpError from "http-errors";
-import auth from "../../secure/authorization";
+import auth, { Token } from "../../secure/authorization";
 
 export default async function validarToken(req: Request, res: Response, next: NextFunction) {
   try {
-    const token = req.headers["x-access-token"] as string;
+    const rawAuth = req.headers["authorization"];
+    const token = (req.headers["x-access-token"] as string) || (typeof rawAuth === "string" ? rawAuth.replace(/^Bearer\s+/i, "") : "");
 
     if (!token) {
-      return next(createHttpError(401, "Token nÃƒÂ£o fornecido"));
+      return next(createHttpError(401, "Token não fornecido"));
     }
 
     const result = await auth.verifyToken(token);
@@ -37,7 +38,7 @@ export default async function validarToken(req: Request, res: Response, next: Ne
         },
         "JWT rejected during request authentication",
       );
-      return next(createHttpError(401, "Token invÃƒÂ¡lido"));
+      return next(createHttpError(401, "Token inválido"));
     }
 
     req.log?.info(
@@ -57,4 +58,14 @@ export default async function validarToken(req: Request, res: Response, next: Ne
   } catch (error) {
     return next(error);
   }
+}
+
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  const payload = res.locals.payload as Token | undefined;
+
+  if (!payload || payload.perfil !== "ADMIN") {
+    return next(createHttpError(403, "Acesso negado: recurso restrito a administradores do sistema."));
+  }
+
+  return next();
 }

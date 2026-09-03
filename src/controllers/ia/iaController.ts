@@ -8,7 +8,9 @@ class IaController {
   async configurar(req: Request, res: Response, next: NextFunction) {
     try {
       const payload = res.locals.payload as Token;
-      const resultado = await iaService.configurar(payload.id, req.body.apiKey, req.body.modelo);
+      const resultado = req.body.provedor
+        ? await iaService.configurar(payload.id, req.body.apiKey, req.body.modelo, req.body.provedor)
+        : await iaService.configurar(payload.id, req.body.apiKey, req.body.modelo);
       return sendSuccess(res, StatusCodes.OK, resultado);
     } catch (error) {
       return next(error);

@@ -32,6 +32,29 @@ export class PrismaIaConfiguracaoRepository implements IaConfiguracaoRepositoryP
     }
   }
 
+  async buscarConfiguracaoAtiva(usuarioId?: string) {
+    try {
+      if (usuarioId) {
+        const userConfig = await this.prisma.iaConfiguracao.findUnique({ where: { usuarioId } });
+        if (userConfig) return userConfig;
+      }
+
+      // Buscar configuração configurada por usuário com perfil ADMIN
+      const adminConfig = await this.prisma.iaConfiguracao.findFirst({
+        where: { usuario: { perfil: 'ADMIN' } },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (adminConfig) return adminConfig;
+
+      // Fallback para qualquer configuração existente
+      return await this.prisma.iaConfiguracao.findFirst({
+        orderBy: { updatedAt: 'desc' },
+      });
+    } catch (error) {
+      throw createRepositoryError(error, "Nao foi possivel buscar a configuracao ativa de IA.");
+    }
+  }
+
   async removerPorUsuarioId(usuarioId: string) {
     try {
       await this.prisma.iaConfiguracao.deleteMany({ where: { usuarioId } });

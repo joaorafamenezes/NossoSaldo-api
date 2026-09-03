@@ -85,12 +85,12 @@ describe("FaturaCartaoService", () => {
     expect(faturaCartaoRepository.reabrirFatura).toHaveBeenCalledWith("invoice-1");
   });
 
-  it("should reject reopening invoice that is not paid", async () => {
-    (faturaCartaoRepository.buscarFaturaPorIdParaUsuario as jest.Mock).mockResolvedValue(fatura);
+  it("should reject reopening invoice that is already open", async () => {
+    (faturaCartaoRepository.buscarFaturaPorIdParaUsuario as jest.Mock).mockResolvedValue({ ...fatura, status: "aberta" });
 
     await expect(faturaCartaoService.reabrirFatura("invoice-1", "user-1")).rejects.toHaveProperty(
       "message",
-      "Somente faturas pagas podem ser reabertas.",
+      "Esta fatura já se encontra aberta.",
     );
   });
 

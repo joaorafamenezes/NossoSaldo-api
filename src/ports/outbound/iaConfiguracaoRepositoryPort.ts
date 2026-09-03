@@ -12,5 +12,6 @@ export type IaConfiguracaoPersistida = {
 export interface IaConfiguracaoRepositoryPort {
   salvar(configuracao: Omit<IaConfiguracaoPersistida, "createdAt" | "updatedAt">): Promise<IaConfiguracaoPersistida>;
   buscarPorUsuarioId(usuarioId: string): Promise<IaConfiguracaoPersistida | null>;
+  buscarConfiguracaoAtiva(usuarioId?: string): Promise<IaConfiguracaoPersistida | null>;
   removerPorUsuarioId(usuarioId: string): Promise<void>;
 }
