@@ -112,7 +112,7 @@ jobs:
         run: npm run prisma:generate
 
       - name: Apply migrations to test database
-        run: npx prisma migrate deploy
+        run: npm run migrate:deploy
 
       - name: Run integration tests
         run: npx jest --config jest.integration.config.cjs --runInBand
