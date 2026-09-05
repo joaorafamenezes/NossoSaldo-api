@@ -316,4 +316,71 @@ describe("IaService", () => {
     });
     expect(faturaServ.pagarFatura).toHaveBeenCalledWith("fat-1", expect.any(Object), "user-1");
   });
+
+  it("executa alteracao, pagamento, desfecho e exclusao de gasto pela IA", async () => {
+    const gastoRepo = {
+      listarGastosPorResponsavelId: jest.fn().mockResolvedValue([
+        { id: "g-1", responsavelId: "user-1", descricao: "Luz", valor: 150, status: "pendente" },
+      ]),
+      buscarGastoPorId: jest.fn().mockResolvedValue({ id: "g-1", responsavelId: "user-1", descricao: "Luz", valor: 150, status: "pendente" }),
+    };
+    const gastoServ = {
+      atualizarGasto: jest.fn().mockResolvedValue({ id: "g-1", descricao: "Luz Nova", valor: 160 }),
+      pagarGasto: jest.fn().mockResolvedValue({ id: "g-1", status: "pago" }),
+      reabrirGasto: jest.fn().mockResolvedValue({ id: "g-1", status: "pendente" }),
+      deletarGasto: jest.fn().mockResolvedValue({ id: "g-1" }),
+    };
+    const categoriaServ = {
+      buscarTodasCategorias: jest.fn().mockResolvedValue([
+        { id: "c-1", descricao: "Moradia" },
+        { id: "c-2", descricao: "Lazer" },
+      ]),
+      criarCategoria: jest.fn().mockResolvedValue({ id: "c-2", descricao: "Lazer" }),
+      atualizarCategoria: jest.fn().mockResolvedValue({ id: "c-2", descricao: "Lazer & Diversão" }),
+    };
+    const cartaoServ = {
+      listarCartoesCreditoPorUsuario: jest.fn().mockResolvedValue([{ id: "card-1", descricao: "Nubank", valorLimite: 5000, diaFechamento: 10, diaVencimento: 17 }]),
+    };
+    const faturaServ = {
+      listarFaturasPorUsuario: jest.fn().mockResolvedValue([{ id: "fat-1", cartaoCreditoId: "card-1", valorTotal: 300, status: "paga" }]),
+      buscarExtratoFatura: jest.fn().mockResolvedValue({ id: "fat-1", valorTotal: 300, gastos: [{ id: "g-1", descricao: "Luz", valor: 150 }] }),
+      reabrirFatura: jest.fn().mockResolvedValue({ id: "fat-1", status: "aberta" }),
+    };
+
+    const provider = {
+      responder: jest.fn(),
+      responderComFuncoes: jest.fn().mockImplementation(async ({ execute }: { execute: (name: string, args: string) => Promise<unknown> }) => {
+        await expect(execute("alterar_gasto", JSON.stringify({ gastoId: "g-1", novaDescricao: "Luz Nova", novoValor: 160, novaCategoria: "Moradia" }))).resolves.toMatchObject({ sucesso: true });
+        await expect(execute("pagar_gasto", JSON.stringify({ gastoId: "g-1" }))).resolves.toMatchObject({ sucesso: true });
+        await expect(execute("desfazer_pagamento_gasto", JSON.stringify({ buscaDescricao: "Luz" }))).resolves.toMatchObject({ sucesso: true });
+        await expect(execute("excluir_gasto", JSON.stringify({ buscaDescricao: "Luz" }))).resolves.toMatchObject({ sucesso: true });
+        await expect(execute("listar_categorias", "{}")).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ descricao: "Moradia" })]));
+        await expect(execute("criar_categoria", JSON.stringify({ descricao: "Lazer" }))).resolves.toMatchObject({ sucesso: true });
+        await expect(execute("alterar_categoria", JSON.stringify({ buscaDescricao: "Lazer", novaDescricao: "Lazer & Diversão" }))).resolves.toMatchObject({ sucesso: true });
+        await expect(execute("consultar_cartoes", "{}")).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ descricao: "Nubank" })]));
+        await expect(execute("consultar_faturas_cartao", JSON.stringify({ cartao: "Nubank" }))).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ valorTotal: 300 })]));
+        await expect(execute("consultar_gastos_fatura", JSON.stringify({ faturaId: "fat-1" }))).resolves.toMatchObject({ id: "fat-1" });
+        await expect(execute("reabrir_fatura_cartao", JSON.stringify({ cartao: "Nubank" }))).resolves.toMatchObject({ sucesso: true });
+        return "Operações executadas com sucesso.";
+      }),
+    };
+
+    const configuracoes = { buscarConfiguracaoAtiva: jest.fn().mockResolvedValue({ provedor: "openai", modelo: "gpt-4.1-mini", chaveCriptografada: "c", iv: "iv", authTag: "t" }) };
+    const conversas = { criar: jest.fn().mockResolvedValue({ id: "h-multi", createdAt: new Date() }) };
+
+    const service = new IaService(
+      gastoRepo as any,
+      jest.fn().mockReturnValue(provider),
+      configuracoes as any,
+      { decrypt: jest.fn().mockReturnValue("key") } as any,
+      conversas as any,
+      gastoServ as any,
+      categoriaServ as any,
+      cartaoServ as any,
+      faturaServ as any,
+    );
+
+    const res = await service.consultar("Gerenciar gastos e faturas", "user-1");
+    expect(res).toMatchObject({ resposta: "Operações executadas com sucesso." });
+  });
 });

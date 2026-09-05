@@ -3,7 +3,7 @@ import cors from "cors";
 import { isHttpError } from "http-errors";
 import swaggerUi from "swagger-ui-express";
 import { openApiSpec } from "./docs/openapi";
-import { API_PREFIX } from "./config/apiVersion";
+import { API_PREFIX, LEGACY_API_PREFIX } from "./config/apiVersion";
 import { httpLogger } from "./lib/logger";
 import { router } from "./routers/mainrouter";
 
@@ -39,8 +39,13 @@ app.get("/health", (_req: Request, res: Response) => {
 app.get(`${API_PREFIX}/docs/openapi.json`, (_req: Request, res: Response) => {
   res.json(openApiSpec);
 });
+app.get(`${LEGACY_API_PREFIX}/docs/openapi.json`, (_req: Request, res: Response) => {
+  res.json(openApiSpec);
+});
 app.use(`${API_PREFIX}/docs`, swaggerUi.serve, swaggerUi.setup(openApiSpec));
+app.use(`${LEGACY_API_PREFIX}/docs`, swaggerUi.serve, swaggerUi.setup(openApiSpec));
 app.use(API_PREFIX, router);
+app.use(LEGACY_API_PREFIX, router);
 
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   if (res.headersSent) {

@@ -250,6 +250,7 @@ const financialTools: LlmFunctionTool[] = [
       properties: {
         categoriaId: { type: "string", description: "ID da categoria." },
         nomeAtual: { type: "string", description: "Nome atual da categoria a alterar, ex: Viagens." },
+        buscaDescricao: { type: "string", description: "Nome ou parte do nome da categoria a alterar, ex: Viagens." },
         novaDescricao: { type: "string", description: "Novo nome da categoria, ex: Ferias & Viagens." },
         novaCor: { type: "string", description: "Nova cor hexadecimal." },
         novoIcone: { type: "string", description: "Novo icone." },
@@ -776,7 +777,7 @@ export class IaService {
         }
 
         if (name === "alterar_categoria") {
-          const cat = await this.resolverCategoria(args.categoriaId || args.nomeAtual);
+          const cat = await this.resolverCategoria(args.categoriaId || args.nomeAtual || args.buscaDescricao);
           if (!cat) {
             return { erro: "Categoria nao encontrada para alteracao." };
           }

@@ -13,7 +13,7 @@ describe("OpenAPI docs", () => {
         openapi: "3.0.3",
         info: expect.objectContaining({
           title: "NossoSaldo API",
-          version: API_VERSION,
+          version: "2.0.0",
         }),
       }),
     );

@@ -1,4 +1,4 @@
-# Arquitetura do NossoSaldo
+# Arquitetura do NossoSaldo (v2.0.0)
 
 Para uma leitura focada em `Ports and Adapters`, veja tambem [arquitetura-hexagonal.md](C:\Projetos\NossoSaldo\api\src\docs\arquitetura-hexagonal.md).
 
@@ -8,35 +8,37 @@ Para uma leitura focada em `Ports and Adapters`, veja tambem [arquitetura-hexago
 flowchart LR
   usuario["Usuario<br/>Navegador"]
 
-  subgraph frontend["Frontend - React + Vite"]
-    telas["Telas<br/>Login, Dashboard, Gastos, Relatorios"]
-    apiClient["Camada de chamadas HTTP<br/>src/services"]
-    estado["Estado da aplicacao<br/>Token, perfil, filtros e listas"]
+  subgraph frontend["Frontend 2.0.0 - React 18 + Vite + TS + Tailwind + Zustand"]
+    telas["Telas & Features<br/>Dashboard 360°, Gastos, Cartoes & Faturas, Conta Conjunta, Copilot IA"]
+    stores["Zustand Stores<br/>useAppStore, useAuthStore, useThemeStore"]
+    apiClient["Camada de chamadas HTTP<br/>src/services/api.ts"]
   end
 
-  subgraph backend["Backend - Node.js + Express + TypeScript"]
-    middlewares["Middlewares<br/>CORS, JSON, Logger, Request ID"]
+  subgraph backend["Backend 2.0.0 - Node.js + Express + TypeScript"]
+    middlewares["Middlewares<br/>CORS, JSON, Logger, Request ID, Auth"]
     auth["Autenticacao<br/>JWT RS256"]
-    routers["Routers<br/>usuarios, gastos, conta conjunta, relatorios"]
-    schemas["Validacao de entrada<br/>Schemas"]
+    routers["Routers<br/>usuarios, gastos, categorias, cartoes, faturas, conta conjunta, relatorios, ia"]
+    schemas["Validacao de entrada<br/>Joi Schemas"]
     controllers["Controllers<br/>HTTP status e resposta padronizada"]
-    services["Services<br/>Regras de negocio"]
-    repositories["Repositories<br/>Acesso a dados"]
-    swagger["Swagger<br/>/docs"]
+    services["Services & IA Engine<br/>Gasto, Cartao, Fatura, ContaConjunta, IaService"]
+    ports["Ports Outbound<br/>LlmProviderPort, IaConversaPort, etc."]
+    repositories["Repositories<br/>Prisma ORM"]
+    swagger["Swagger / OpenAPI 3.0<br/>/api/v1/docs"]
   end
 
   subgraph dados["Persistencia"]
     prisma["Prisma Client"]
-    mysql[("MySQL<br/>Usuarios, Gastos, Categorias,<br/>Contas conjuntas, Tokens")]
+    db[("PostgreSQL<br/>Usuarios, Gastos, LancamentosBase,<br/>Categorias, Cartoes, Faturas,<br/>Contas Conjuntas, IaConversa")]
   end
 
   subgraph externos["Servicos externos"]
+    openai["OpenAI API<br/>gpt-4.1-mini & Function Calling"]
     gmail["Gmail SMTP<br/>Envio de e-mail"]
   end
 
   usuario --> telas
-  telas --> estado
-  telas --> apiClient
+  telas --> stores
+  stores --> apiClient
   apiClient -->|HTTP JSON + x-access-token| middlewares
 
   middlewares --> auth
@@ -44,9 +46,11 @@ flowchart LR
   routers --> schemas
   schemas --> controllers
   controllers --> services
-  services --> repositories
+  services --> ports
+  ports --> repositories
+  services --> openai
   repositories --> prisma
-  prisma --> mysql
+  prisma --> db
 
   services -->|recuperacao de senha| gmail
   routers --> swagger
