@@ -1,4 +1,4 @@
-import { API_PREFIX, API_VERSION, LEGACY_API_PREFIX } from "../config/apiVersion";
+import { API_PREFIX, LEGACY_API_PREFIX } from "../config/apiVersion";
 
 const serverUrl = process.env.APP_URL ?? "http://localhost:10000";
 
