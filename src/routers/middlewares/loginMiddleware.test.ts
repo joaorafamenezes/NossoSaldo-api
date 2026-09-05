@@ -48,7 +48,7 @@ describe("loginMiddleware", () => {
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({
         statusCode: 401,
-        message: "Token nÃƒÂ£o fornecido",
+        message: "Token não fornecido",
       }),
     );
     expect(auth.verifyToken).not.toHaveBeenCalled();
@@ -64,7 +64,7 @@ describe("loginMiddleware", () => {
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({
         statusCode: 401,
-        message: "Token invÃƒÂ¡lido",
+        message: "Token inválido",
       }),
     );
   });

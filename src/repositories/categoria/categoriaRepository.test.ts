@@ -25,7 +25,7 @@ describe("CategoriaRepository", () => {
   });
 
   it("should create category with correct payload", async () => {
-    mockPrisma.categoria.create.mockResolvedValue({ id: "cat-1", descricao: "Alimentacao", iconName: "🍔" });
+    mockPrisma.categoria.create.mockResolvedValue({ id: "cat-1", descricao: "Alimentacao", iconName: "🍔", teto: null });
 
     await expect(
       categoriaRepository.criarCategoria({ descricao: "Alimentacao", iconName: "🍔" })
@@ -33,6 +33,7 @@ describe("CategoriaRepository", () => {
       id: "cat-1",
       descricao: "Alimentacao",
       iconName: "🍔",
+      teto: null,
     });
   });
 

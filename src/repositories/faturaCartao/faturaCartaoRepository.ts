@@ -103,6 +103,119 @@ export class PrismaFaturaCartaoRepository implements FaturaCartaoRepositoryPort 
     }
   }
 
+  async buscarExtratoFatura(faturaId: string, usuarioId: string) {
+    try {
+      const usuariosPermitidos = await listarUsuariosPermitidos(this.prisma, usuarioId);
+      const fatura = await this.prisma.faturaCartao.findFirst({
+        where: {
+          id: faturaId,
+          cartaoCredito: {
+            usuarioId: { in: usuariosPermitidos },
+          },
+        },
+        include: {
+          cartaoCredito: {
+            include: {
+              usuario: { select: { id: true, nome: true, email: true } },
+            },
+          },
+          gastos: {
+            where: {
+              deletedAt: null,
+              origemLancamento: { not: "parcelado" },
+            },
+            include: {
+              categoria: true,
+              responsavel: { select: { id: true, nome: true } },
+            },
+            orderBy: { dataVencimento: "asc" },
+          },
+          lancamentosBase: {
+            where: {
+              gasto: { deletedAt: null },
+            },
+            include: {
+              gasto: {
+                include: {
+                  categoria: true,
+                  responsavel: { select: { id: true, nome: true } },
+                },
+              },
+            },
+            orderBy: { dataVencimentoParcela: "asc" },
+          },
+        },
+      });
+
+      if (!fatura) {
+        return null;
+      }
+
+      const itens = [
+        ...fatura.gastos.map((g) => ({
+          id: g.id,
+          gastoId: g.id,
+          descricao: g.descricao,
+          valor: Number(g.valor),
+          dataVencimento: g.dataVencimento,
+          status: g.status,
+          origemLancamento: g.origemLancamento,
+          parcelaAtual: g.numeroParcelas > 1 ? 1 : null,
+          numeroParcelas: g.numeroParcelas,
+          categoriaId: g.categoriaId,
+          categoriaNome: g.categoria?.descricao || "Geral",
+          categoriaIcone: g.categoria?.iconName || "🏷️",
+          categoriaCor: g.categoria?.cor || "#10b981",
+          responsavelId: g.responsavelId,
+          responsavelNome: g.responsavel?.nome || "Usuário",
+          observacao: g.observacao,
+        })),
+        ...fatura.lancamentosBase.map((l) => ({
+          id: l.id,
+          gastoId: l.gastoId,
+          descricao: `${l.gasto.descricao} (${l.numeroParcela}/${l.gasto.numeroParcelas})`,
+          valor: Number(l.valorParcela),
+          dataVencimento: l.dataVencimentoParcela,
+          status: l.status,
+          origemLancamento: "parcelado",
+          parcelaAtual: l.numeroParcela,
+          numeroParcelas: l.gasto.numeroParcelas,
+          categoriaId: l.gasto.categoriaId,
+          categoriaNome: l.gasto.categoria?.descricao || "Geral",
+          categoriaIcone: l.gasto.categoria?.iconName || "🏷️",
+          categoriaCor: l.gasto.categoria?.cor || "#10b981",
+          responsavelId: l.gasto.responsavelId,
+          responsavelNome: l.gasto.responsavel?.nome || "Usuário",
+          observacao: l.gasto.observacao,
+        })),
+      ];
+
+      return {
+        id: fatura.id,
+        cartaoCreditoId: fatura.cartaoCreditoId,
+        competencia: fatura.competencia,
+        dataAbertura: fatura.dataAbertura,
+        dataFechamento: fatura.dataFechamento,
+        dataVencimento: fatura.dataVencimento,
+        valorTotal: Number(fatura.valorTotal),
+        status: fatura.status,
+        dataPagamento: fatura.dataPagamento,
+        cartao: {
+          id: fatura.cartaoCredito.id,
+          descricao: fatura.cartaoCredito.descricao,
+          ultimosDigitos: fatura.cartaoCredito.ultimosDigitos,
+          bandeira: fatura.cartaoCredito.bandeira,
+          corGradiente: fatura.cartaoCredito.corGradiente,
+          valorLimite: Number(fatura.cartaoCredito.valorLimite),
+        },
+        totalItens: itens.length,
+        itens,
+      };
+    } catch (error) {
+      throw createRepositoryError(error, "Nao foi possivel buscar o extrato da fatura do cartao.");
+    }
+  }
+
   async listarFaturasPorUsuario(usuarioId: string, cartaoCreditoId?: string) {
     try {
       const usuariosPermitidos = await listarUsuariosPermitidos(this.prisma, usuarioId);

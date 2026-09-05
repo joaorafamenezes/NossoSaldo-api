@@ -58,4 +58,23 @@ describe('CategoriaService', () => {
       );
     });
   });
+
+  describe('atualizarCategoria', () => {
+    it('should delegate update to repository', async () => {
+      const atualizada = { id: 'cat-1', descricao: 'Alimentação & Mercado', iconName: '🍔' };
+      (categoriaRepository.atualizarCategoria as jest.Mock) = jest.fn().mockResolvedValue(atualizada);
+
+      const result = await categoriaService.atualizarCategoria('cat-1', { descricao: 'Alimentação & Mercado' });
+      expect(result).toEqual(atualizada);
+    });
+  });
+
+  describe('deletarCategoria', () => {
+    it('should delegate delete to repository', async () => {
+      (categoriaRepository.deletarCategoria as jest.Mock) = jest.fn().mockResolvedValue({ id: 'cat-1' });
+
+      const result = await categoriaService.deletarCategoria('cat-1');
+      expect(result).toEqual({ id: 'cat-1' });
+    });
+  });
 });

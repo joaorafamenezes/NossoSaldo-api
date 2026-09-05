@@ -1,6 +1,6 @@
 import request from "supertest";
 import { app } from "../app";
-import { API_PREFIX, API_VERSION } from "../config/apiVersion";
+import { API_PREFIX } from "../config/apiVersion";
 
 describe("OpenAPI docs", () => {
   it("should expose the OpenAPI JSON document", async () => {
@@ -13,7 +13,7 @@ describe("OpenAPI docs", () => {
         openapi: "3.0.3",
         info: expect.objectContaining({
           title: "NossoSaldo API",
-          version: API_VERSION,
+          version: "2.0.0",
         }),
       }),
     );

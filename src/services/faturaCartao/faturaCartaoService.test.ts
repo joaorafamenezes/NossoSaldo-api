@@ -85,12 +85,12 @@ describe("FaturaCartaoService", () => {
     expect(faturaCartaoRepository.reabrirFatura).toHaveBeenCalledWith("invoice-1");
   });
 
-  it("should reject reopening invoice that is not paid", async () => {
-    (faturaCartaoRepository.buscarFaturaPorIdParaUsuario as jest.Mock).mockResolvedValue(fatura);
+  it("should reject reopening invoice that is already open", async () => {
+    (faturaCartaoRepository.buscarFaturaPorIdParaUsuario as jest.Mock).mockResolvedValue({ ...fatura, status: "aberta" });
 
     await expect(faturaCartaoService.reabrirFatura("invoice-1", "user-1")).rejects.toHaveProperty(
       "message",
-      "Somente faturas pagas podem ser reabertas.",
+      "Esta fatura já se encontra aberta.",
     );
   });
 
@@ -110,5 +110,31 @@ describe("FaturaCartaoService", () => {
       "message",
       "Fatura do cartao nao encontrada.",
     );
+  });
+
+  describe("buscarExtratoFatura", () => {
+    it("should return invoice statement when found", async () => {
+      const extrato = { id: "fat-1", valorTotal: 500, gastos: [] };
+      (faturaCartaoRepository.buscarExtratoFatura as jest.Mock) = jest.fn().mockResolvedValue(extrato);
+
+      const result = await faturaCartaoService.buscarExtratoFatura("fat-1", "user-1");
+      expect(result).toEqual(extrato);
+    });
+
+    it("should throw 404 when user not found", async () => {
+      (usuarioRepository.listarUsuarioPorId as jest.Mock).mockResolvedValue(null);
+      await expect(faturaCartaoService.buscarExtratoFatura("fat-1", "user-1")).rejects.toHaveProperty(
+        "message",
+        "Usuario nao encontrado.",
+      );
+    });
+
+    it("should throw 404 when invoice not found", async () => {
+      (faturaCartaoRepository.buscarExtratoFatura as jest.Mock) = jest.fn().mockResolvedValue(null);
+      await expect(faturaCartaoService.buscarExtratoFatura("fat-1", "user-1")).rejects.toHaveProperty(
+        "message",
+        "Fatura nao encontrada ou usuario sem permissao.",
+      );
+    });
   });
 });

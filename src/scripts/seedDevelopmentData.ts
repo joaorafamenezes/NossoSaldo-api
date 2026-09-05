@@ -13,6 +13,7 @@ type SeedUser = {
 type SeedCategory = {
   descricao: string;
   iconName: string;
+  cor?: string;
 };
 
 type SeedExpense = {
@@ -99,6 +100,15 @@ async function ensureCategory(category: SeedCategory) {
   });
 
   if (existente) {
+    if (category.cor || category.iconName) {
+      await prisma.categoria.update({
+        where: { id: existente.id },
+        data: {
+          ...(category.cor ? { cor: category.cor } : {}),
+          ...(category.iconName ? { iconName: category.iconName } : {}),
+        },
+      });
+    }
     return existente.id;
   }
 
@@ -106,6 +116,7 @@ async function ensureCategory(category: SeedCategory) {
     data: {
       descricao: category.descricao,
       iconName: category.iconName,
+      cor: category.cor || "#10b981",
     },
     select: { id: true },
   });
@@ -222,10 +233,10 @@ async function seedDevelopmentData() {
     senha: DEFAULT_PASSWORD,
   });
 
-  const categoriaReceitaId = await ensureCategory({ descricao: "Receita Seed Dev", iconName: "💰" });
-  const categoriaMoradiaId = await ensureCategory({ descricao: "Moradia Seed Dev", iconName: "🏠" });
-  const categoriaMercadoId = await ensureCategory({ descricao: "Mercado Seed Dev", iconName: "🛒" });
-  const categoriaTransporteId = await ensureCategory({ descricao: "Transporte Seed Dev", iconName: "🚗" });
+  const categoriaReceitaId = await ensureCategory({ descricao: "Receita Seed Dev", iconName: "💰", cor: "#10b981" });
+  const categoriaMoradiaId = await ensureCategory({ descricao: "Moradia Seed Dev", iconName: "🏠", cor: "#6366f1" });
+  const categoriaMercadoId = await ensureCategory({ descricao: "Mercado Seed Dev", iconName: "🛒", cor: "#f59e0b" });
+  const categoriaTransporteId = await ensureCategory({ descricao: "Transporte Seed Dev", iconName: "🚗", cor: "#3b82f6" });
 
   const contaConjuntaId = await ensureJointAccount("Conta Compartilhada Seed Dev", devSharedOneId, devSharedTwoId);
 

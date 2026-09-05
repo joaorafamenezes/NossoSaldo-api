@@ -1,4 +1,4 @@
-import { API_PREFIX, API_VERSION } from "../config/apiVersion";
+import { API_PREFIX, LEGACY_API_PREFIX } from "../config/apiVersion";
 
 const serverUrl = process.env.APP_URL ?? "http://localhost:10000";
 
@@ -6,13 +6,17 @@ export const openApiSpec = {
   openapi: "3.0.3",
   info: {
     title: "NossoSaldo API",
-    version: API_VERSION,
-    description: "Documentacao das rotas da API do NossoSaldo, um sistema de controle financeiro pessoal e compartilhado com gastos, receitas, cartoes, faturas, contas conjuntas e relatorios.",
+    version: "2.0.0",
+    description: "Documentacao OpenAPI 3.0 das rotas da API do NossoSaldo v2.0.0, com suporte a gestao de gastos, contas conjuntas, cartoes com limites dinamicos e Copilot Financeiro com IA operacional.",
   },
   servers: [
     {
       url: `${serverUrl}${API_PREFIX}`,
-      description: `Servidor principal (${API_VERSION})`,
+      description: `Servidor principal v2.0.0 (${API_PREFIX})`,
+    },
+    {
+      url: `${serverUrl}${LEGACY_API_PREFIX}`,
+      description: `Servidor de compatibilidade legado (${LEGACY_API_PREFIX})`,
     },
   ],
   tags: [

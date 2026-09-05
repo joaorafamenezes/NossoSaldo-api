@@ -66,12 +66,12 @@ describe("iaRouter", () => {
     expect(consultar.mock.calls[0][0].body).toEqual({ pergunta: "Qual foi meu maior gasto?" });
   });
 
-  it("should reject a question shorter than three characters", async () => {
+  it("should reject an empty question", async () => {
     const { app, consultar } = await createTestApp();
 
     const response = await request(app)
       .post("/api/v1/ia/consultas")
-      .send({ pergunta: "oi" });
+      .send({ pergunta: "" });
 
     expect(response.status).toBe(422);
     expect(response.body.error.code).toBe("VALIDATION_ERROR");

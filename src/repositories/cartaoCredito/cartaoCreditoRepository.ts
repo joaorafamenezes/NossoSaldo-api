@@ -15,6 +15,10 @@ export class PrismaCartaoCreditoRepository implements CartaoCreditoRepositoryPor
           diaFechamento: cartao.diaFechamento,
           diaVencimento: cartao.diaVencimento,
           valorLimite: cartao.valorLimite,
+          cor: cartao.cor || cartao.corGradiente || "from-purple-900 via-indigo-950 to-black",
+          corGradiente: cartao.corGradiente || cartao.cor || "from-purple-900 via-indigo-950 to-black",
+          ultimosDigitos: cartao.ultimosDigitos || null,
+          bandeira: cartao.bandeira || "mastercard",
           observacoes: cartao.observacoes?.trim() || null,
           usuarioId,
         },
@@ -92,6 +96,12 @@ export class PrismaCartaoCreditoRepository implements CartaoCreditoRepositoryPor
           diaFechamento: cartao.diaFechamento,
           diaVencimento: cartao.diaVencimento,
           valorLimite: cartao.valorLimite,
+          ...(cartao.cor || cartao.corGradiente ? {
+            cor: cartao.cor || cartao.corGradiente,
+            corGradiente: cartao.corGradiente || cartao.cor,
+          } : {}),
+          ...(cartao.ultimosDigitos ? { ultimosDigitos: cartao.ultimosDigitos } : {}),
+          ...(cartao.bandeira ? { bandeira: cartao.bandeira } : {}),
           observacoes: cartao.observacoes?.trim() || null,
         },
       });

@@ -12,6 +12,14 @@ export class CategoriaService {
   async buscarTodasCategorias() {
     return await this.categoriaRepository.buscarTodasCategorias();
   }
+
+  async atualizarCategoria(id: string, data: Partial<iCriarCategoria>) {
+    return await this.categoriaRepository.atualizarCategoria(id, data);
+  }
+
+  async deletarCategoria(id: string) {
+    return await this.categoriaRepository.deletarCategoria(id);
+  }
 }
 
 export const categoriaService = new CategoriaService(categoriaRepository);

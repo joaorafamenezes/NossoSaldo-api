@@ -69,22 +69,23 @@ jobs:
     name: Integration tests
     runs-on: ubuntu-latest
     services:
-      mysql:
-        image: mysql:8.4
+      postgres:
+        image: postgres:16
         env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: nossosaldo_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: root
+          POSTGRES_DB: nossosaldo_test
         ports:
-          - 3306:3306
+          - 5432:5432
         options: >-
-          --health-cmd "mysqladmin ping -h localhost -uroot -proot"
+          --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_PROVIDER: mysql
-      DATABASE_URL: mysql://root:root@localhost:3306/nossosaldo_test
-      DIRECT_URL: mysql://root:root@localhost:3306/nossosaldo_test
+      DATABASE_PROVIDER: postgresql
+      DATABASE_URL: postgresql://postgres:root@localhost:5432/nossosaldo_test?schema=public
+      DIRECT_URL: postgresql://postgres:root@localhost:5432/nossosaldo_test?schema=public
       JWT_EXPIRES: 3600
       REQUIRE_EMAIL_VERIFICATION: false
       NODE_ENV: test
@@ -111,7 +112,7 @@ jobs:
         run: npm run prisma:generate
 
       - name: Apply migrations to test database
-        run: npx prisma migrate deploy
+        run: npm run migrate:deploy
 
       - name: Run integration tests
         run: npx jest --config jest.integration.config.cjs --runInBand

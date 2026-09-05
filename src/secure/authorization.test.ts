@@ -9,7 +9,7 @@ describe("authorization", () => {
 
     const result = await authorization.verifyToken(token as string);
 
-    expect(result).toEqual({ payload: { id: "user-test-id" }, error: null });
+    expect(result).toEqual({ payload: { id: "user-test-id", perfil: "USUARIO" }, error: null });
   });
 
   it("should generate a token with RS256 header and configured expiration", async () => {

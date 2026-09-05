@@ -25,6 +25,10 @@ gastoRouter.post("/gastosUsuarioLogado", validarToken, validateUser(createGastoS
     gastoController.criarGastoUsuarioLogado(req, res, next).catch(next);
 });
 
+gastoRouter.post("/gastos", validarToken, validateUser(createGastoSchema), (req: Request, res: Response, next: NextFunction) => {
+    gastoController.criarGastoUsuarioLogado(req, res, next).catch(next);
+});
+
 gastoRouter.patch("/gastos/:id", validarToken, validateUser(updateGastoSchema), (req: Request, res: Response, next: NextFunction) => {
     gastoController.atualizarGasto(req, res, next).catch(next);
 });

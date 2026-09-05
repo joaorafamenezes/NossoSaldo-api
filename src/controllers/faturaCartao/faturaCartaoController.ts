@@ -22,6 +22,18 @@ class FaturaCartaoController {
     }
   }
 
+  async buscarExtratoFatura(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const payload = res.locals.payload as Token;
+
+      const extrato = await faturaCartaoService.buscarExtratoFatura(id, payload.id);
+      return sendSuccess(res, StatusCodes.OK, extrato);
+    } catch (error) {
+      return next(error);
+    }
+  }
+
   async pagarFatura(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;

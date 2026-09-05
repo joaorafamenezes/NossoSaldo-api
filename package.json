@@ -1,6 +1,6 @@
 {
   "name": "nossosaldoapi",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "main": "index.js",
   "scripts": {
     "prisma:prepare": "ts-node src/scripts/preparePrismaSchema.ts",
@@ -18,7 +18,7 @@
     "migrate:status": "npm run prisma:prepare && prisma migrate status",
     "seed:dev": "npm run prisma:prepare && npm run db:ensure:local && npm run db:sync && ts-node src/scripts/seedDevelopmentData.ts",
     "test": "jest --config jest.config.cjs --runInBand --passWithNoTests",
-    "test:integration": "npm run prisma:prepare && prisma migrate deploy && jest --config jest.integration.config.cjs --runInBand"
+    "test:integration": "npm run migrate:deploy && jest --config jest.integration.config.cjs --runInBand"
   },
   "repository": {
     "type": "git",

@@ -26,6 +26,10 @@ const createCartaoCreditoSchema = joi.object({
     "number.positive": "O limite do cartao deve ser maior que zero.",
     "any.required": "O limite do cartao e obrigatorio.",
   }),
+  cor: joi.string().allow("", null).max(255).optional(),
+  corGradiente: joi.string().allow("", null).max(255).optional(),
+  ultimosDigitos: joi.string().allow("", null).max(4).optional(),
+  bandeira: joi.string().allow("", null).max(30).optional(),
   observacoes: joi.string().allow("").max(500).optional().messages({
     "string.max": "As observacoes nao podem ter mais de 500 caracteres.",
   }),

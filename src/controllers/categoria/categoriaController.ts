@@ -25,6 +25,27 @@ class CategoriaController {
             return next(error);
         }
     }
+
+    async atualizarCategoria(req: Request, res: Response, next: NextFunction) {
+        try {
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const data: Partial<iCriarCategoria> = req.body;
+            const categoriaAtualizada = await categoriaService.atualizarCategoria(id, data);
+            return sendSuccess(res, StatusCodes.OK, categoriaAtualizada);
+        } catch (error) {
+            return next(error);
+        }
+    }
+
+    async deletarCategoria(req: Request, res: Response, next: NextFunction) {
+        try {
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            await categoriaService.deletarCategoria(id);
+            return sendSuccess(res, StatusCodes.OK, { mensagem: "Categoria excluida com sucesso." });
+        } catch (error) {
+            return next(error);
+        }
+    }
 }
 
 export const categoriaController = new CategoriaController();

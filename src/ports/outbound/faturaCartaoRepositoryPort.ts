@@ -6,6 +6,7 @@ export type CartaoFaturaInput = {
 
 export interface FaturaCartaoRepositoryPort {
   buscarFaturaPorIdParaUsuario(faturaId: string, usuarioId: string): Promise<any>;
+  buscarExtratoFatura(faturaId: string, usuarioId: string): Promise<any>;
   listarFaturasPorUsuario(usuarioId: string, cartaoCreditoId?: string): Promise<any[]>;
   buscarOuCriarFatura(cartao: CartaoFaturaInput, dataReferencia: Date): Promise<any>;
   buscarOuCriarFaturaPorCompetencia(cartao: CartaoFaturaInput, competenciaReferencia: Date): Promise<any>;
