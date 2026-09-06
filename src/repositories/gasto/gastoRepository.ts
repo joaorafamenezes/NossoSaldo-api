@@ -217,6 +217,25 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
                         },
                       },
                     },
+                    {
+                      origemLancamento: "recorrente",
+                      AND: [
+                        {
+                          OR: [
+                            { dataInicioRecorrencia: null },
+                            { dataInicioRecorrencia: { lte: dateRange.end } },
+                            { dataVencimento: { lte: dateRange.end } },
+                            { competencia: { lte: dateRange.end } },
+                          ],
+                        },
+                        {
+                          OR: [
+                            { dataFimRecorrencia: null },
+                            { dataFimRecorrencia: { gte: dateRange.start } },
+                          ],
+                        },
+                      ],
+                    },
                   ],
                 },
               ],
