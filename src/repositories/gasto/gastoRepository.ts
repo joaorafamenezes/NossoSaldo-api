@@ -151,7 +151,7 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
             valor: gasto.valor,
             competencia: gasto.competencia ?? null,
             dataVencimento: gasto.dataVencimento ?? null,
-            dataPagamento: gasto.dataPagamento ?? null,
+            dataPagamento: gasto.dataPagamento ?? (gasto.status === 'pago' ? (gasto.dataVencimento ?? new Date()) : null),
             observacao: gasto.observacao ?? null,
             categoriaId: gasto.categoriaId,
             responsavelId: gasto.responsavelId,
