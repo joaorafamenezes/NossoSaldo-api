@@ -335,8 +335,8 @@ describe("IaService", () => {
         { id: "c-1", descricao: "Moradia" },
         { id: "c-2", descricao: "Lazer" },
       ]),
-      criarCategoria: jest.fn().mockResolvedValue({ id: "c-2", descricao: "Lazer" }),
-      atualizarCategoria: jest.fn().mockResolvedValue({ id: "c-2", descricao: "Lazer & Diversão" }),
+      criarCategoria: jest.fn().mockImplementation((data) => Promise.resolve({ id: "c-2", ...data })),
+      atualizarCategoria: jest.fn().mockImplementation((id, data) => Promise.resolve({ id, ...data, descricao: data.descricao || "Lazer & Diversão" })),
     };
     const cartaoServ = {
       listarCartoesCreditoPorUsuario: jest.fn().mockResolvedValue([{ id: "card-1", descricao: "Nubank", valorLimite: 5000, diaFechamento: 10, diaVencimento: 17 }]),
@@ -355,8 +355,8 @@ describe("IaService", () => {
         await expect(execute("desfazer_pagamento_gasto", JSON.stringify({ buscaDescricao: "Luz" }))).resolves.toMatchObject({ sucesso: true });
         await expect(execute("excluir_gasto", JSON.stringify({ buscaDescricao: "Luz" }))).resolves.toMatchObject({ sucesso: true });
         await expect(execute("listar_categorias", "{}")).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ descricao: "Moradia" })]));
-        await expect(execute("criar_categoria", JSON.stringify({ descricao: "Lazer" }))).resolves.toMatchObject({ sucesso: true });
-        await expect(execute("alterar_categoria", JSON.stringify({ buscaDescricao: "Lazer", novaDescricao: "Lazer & Diversão" }))).resolves.toMatchObject({ sucesso: true });
+        await expect(execute("criar_categoria", JSON.stringify({ descricao: "Lazer", teto: 500 }))).resolves.toMatchObject({ sucesso: true, mensagem: expect.stringContaining("500.00") });
+        await expect(execute("alterar_categoria", JSON.stringify({ buscaDescricao: "Lazer", novoTeto: 700 }))).resolves.toMatchObject({ sucesso: true });
         await expect(execute("consultar_cartoes", "{}")).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ descricao: "Nubank" })]));
         await expect(execute("consultar_faturas_cartao", JSON.stringify({ cartao: "Nubank" }))).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ valorTotal: 300 })]));
         await expect(execute("consultar_gastos_fatura", JSON.stringify({ faturaId: "fat-1" }))).resolves.toMatchObject({ id: "fat-1" });
@@ -382,5 +382,74 @@ describe("IaService", () => {
 
     const res = await service.consultar("Gerenciar gastos e faturas", "user-1");
     expect(res).toMatchObject({ resposta: "Operações executadas com sucesso." });
+  });
+
+  it("monitora categorias e identifica limites atingidos em 60%, 80% e 100%", async () => {
+    const gastoRepo = {
+      listarGastosPorResponsavelId: jest.fn().mockResolvedValue([
+        { id: "g-1", responsavelId: "user-1", categoriaId: "cat-1", descricao: "Supermercado 1", tipo: "despesa", status: "pago", valor: 650, dataVencimento: new Date("2026-08-05") },
+        { id: "g-2", responsavelId: "user-1", categoriaId: "cat-1", descricao: "Supermercado 2", tipo: "despesa", status: "pendente", valor: 400, dataVencimento: new Date("2026-08-15") },
+        { id: "g-3", responsavelId: "user-1", categoriaId: "cat-2", descricao: "Restaurante", tipo: "despesa", status: "pago", valor: 420, dataVencimento: new Date("2026-08-10") },
+        { id: "g-4", responsavelId: "user-1", categoriaId: "cat-3", descricao: "Farmacia", tipo: "despesa", status: "pago", valor: 130, dataVencimento: new Date("2026-08-12") },
+        { id: "g-5", responsavelId: "user-1", categoriaId: "cat-4", descricao: "Gasolina", tipo: "despesa", status: "pago", valor: 50, dataVencimento: new Date("2026-08-12") },
+      ]),
+    };
+    const categoriaServ = {
+      buscarTodasCategorias: jest.fn().mockResolvedValue([
+        { id: "cat-1", descricao: "Alimentação", teto: 1000 }, // Gasto: 1050 (105% -> 100% atingido)
+        { id: "cat-2", descricao: "Lazer", teto: 500 },        // Gasto: 420 (84% -> 80% atingido)
+        { id: "cat-3", descricao: "Saúde", teto: 200 },        // Gasto: 130 (65% -> 60% atingido)
+        { id: "cat-4", descricao: "Transporte", teto: 500 },   // Gasto: 50 (10% -> normal)
+      ]),
+    };
+
+    const provider = {
+      responder: jest.fn(),
+      responderComFuncoes: jest.fn().mockImplementation(async ({ execute }: { execute: (name: string, args: string) => Promise<unknown> }) => {
+        const resultadoGeral: any = await execute("monitorar_categorias", JSON.stringify({ de: "2026-08-01", ate: "2026-08-31" }));
+        expect(resultadoGeral.resumoAlertas.total100Porcento).toBe(1);
+        expect(resultadoGeral.resumoAlertas.total80Porcento).toBe(1);
+        expect(resultadoGeral.resumoAlertas.total60Porcento).toBe(1);
+        expect(resultadoGeral.categorias100Porcento[0]).toMatchObject({
+          categoria: "Alimentação",
+          tetoEfetivo: 1000,
+          valorGasto: 1050,
+          percentual: 105,
+          nivelAlerta: "vermelho_100",
+        });
+        expect(resultadoGeral.categorias80Porcento[0]).toMatchObject({
+          categoria: "Lazer",
+          percentual: 84,
+          nivelAlerta: "laranja_80",
+        });
+        expect(resultadoGeral.categorias60Porcento[0]).toMatchObject({
+          categoria: "Saúde",
+          percentual: 65,
+          nivelAlerta: "amarelo_60",
+        });
+
+        const apenas100: any = await execute("monitorar_categorias", JSON.stringify({ de: "2026-08-01", ate: "2026-08-31", nivelMinimo: 100 }));
+        expect(apenas100.todasCategorias).toHaveLength(1);
+        expect(apenas100.todasCategorias[0].categoria).toBe("Alimentação");
+
+        return "Categorias monitoradas com sucesso.";
+      }),
+    };
+
+    const configuracoes = { buscarConfiguracaoAtiva: jest.fn().mockResolvedValue({ provedor: "openai", modelo: "gpt-4.1-mini", chaveCriptografada: "c", iv: "iv", authTag: "t" }) };
+    const conversas = { criar: jest.fn().mockResolvedValue({ id: "h-monitor", createdAt: new Date() }) };
+
+    const service = new IaService(
+      gastoRepo as any,
+      jest.fn().mockReturnValue(provider),
+      configuracoes as any,
+      { decrypt: jest.fn().mockReturnValue("key") } as any,
+      conversas as any,
+      {} as any,
+      categoriaServ as any,
+    );
+
+    const res = await service.consultar("Quais as categorias que atingiram 100% do limite configurado?", "user-1");
+    expect(res).toMatchObject({ resposta: "Categorias monitoradas com sucesso." });
   });
 });

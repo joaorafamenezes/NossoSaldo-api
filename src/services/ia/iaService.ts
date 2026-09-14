@@ -212,11 +212,30 @@ const financialTools: LlmFunctionTool[] = [
     strict: false,
   },
 
-  // --- Operações de Categorias ---
+  // --- Operações de Categorias & Tetos Orçamentários ---
+  {
+    type: "function",
+    name: "monitorar_categorias",
+    description: "Monitora os gastos de cada categoria contra seus limites/tetos orcamentarios configurados no periodo, identificando percentuais consumidos e alertando quais categorias atingiram 60%, 80% ou 100% do limite.",
+    parameters: {
+      type: "object",
+      properties: {
+        de: { type: "string", description: "Data inicial no formato YYYY-MM-DD. Se nao informada, considera o primeiro dia do mes atual." },
+        ate: { type: "string", description: "Data final no formato YYYY-MM-DD. Se nao informada, considera o ultimo dia do mes atual." },
+        nivelMinimo: { type: "integer", enum: [60, 80, 100], description: "Filtrar apenas categorias que atingiram no minimo 60%, 80% ou 100% do seu limite." },
+        apenasAlertas: { type: "boolean", description: "Se verdadeiro, retorna apenas as categorias que atingiram pelo menos 60% do seu teto orcamentario." },
+        categoria: { type: "string", description: "Nome ou parte do nome da categoria para consultar seu status orcamentario individual." },
+        responsavel: { type: "string", description: "Nome ou parte do nome do responsavel para filtrar os gastos." },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    strict: false,
+  },
   {
     type: "function",
     name: "listar_categorias",
-    description: "Lista todas as categorias disponiveis no sistema para classificacao de gastos.",
+    description: "Lista todas as categorias disponiveis no sistema com seus nomes, icones, cores e tetos orcamentarios configurados.",
     parameters: {
       type: "object",
       properties: {},
@@ -228,11 +247,12 @@ const financialTools: LlmFunctionTool[] = [
   {
     type: "function",
     name: "criar_categoria",
-    description: "Cria uma nova categoria para organizar gastos e receitas no NossoSaldo.",
+    description: "Cria uma nova categoria para organizar gastos e receitas no NossoSaldo, podendo definir um teto orcamentario mensal.",
     parameters: {
       type: "object",
       properties: {
         descricao: { type: "string", description: "Nome da nova categoria, ex: Pets, Educacao, Hobbies." },
+        teto: { type: "number", description: "Teto ou limite orcamentario mensal em reais (ex: 500 ou 1200.50)." },
         cor: { type: "string", description: "Codigo de cor hexadecimal, ex: #10B981." },
         icone: { type: "string", description: "Nome do icone Lucide, ex: Dog, Book, Sparkles." },
       },
@@ -244,7 +264,7 @@ const financialTools: LlmFunctionTool[] = [
   {
     type: "function",
     name: "alterar_categoria",
-    description: "Altera o nome, cor ou icone de uma categoria existente.",
+    description: "Altera o nome, cor, icone ou teto orcamentario de uma categoria existente.",
     parameters: {
       type: "object",
       properties: {
@@ -252,10 +272,12 @@ const financialTools: LlmFunctionTool[] = [
         nomeAtual: { type: "string", description: "Nome atual da categoria a alterar, ex: Viagens." },
         buscaDescricao: { type: "string", description: "Nome ou parte do nome da categoria a alterar, ex: Viagens." },
         novaDescricao: { type: "string", description: "Novo nome da categoria, ex: Ferias & Viagens." },
+        novoTeto: { type: "number", description: "Novo valor de teto/limite orcamentario em reais (ex: 700 ou 0 para sem limite)." },
+        teto: { type: "number", description: "Novo valor de teto/limite orcamentario em reais." },
         novaCor: { type: "string", description: "Nova cor hexadecimal." },
         novoIcone: { type: "string", description: "Novo icone." },
       },
-      required: ["novaDescricao"],
+      required: [],
       additionalProperties: false,
     },
     strict: false,
@@ -346,8 +368,9 @@ const nossoSaldoTerms = [
   "orcamento", "orçamento", "econom", "total", "quanto", "mes", "mês", "ano", "cadastr", "cri",
   "adicion", "alter", "mud", "edit", "pag", "quit", "desfaz", "reabr", "exclu", "delet", "remov",
   "compr", "mercado", "supermercado", "farmacia", "farmácia", "luz", "agua", "água", "internet",
-  "salario", "salário", "valor", "reais", "r$", "limite", "fechamento", "resumo", "relatorio",
+  "salario", "salário", "valor", "reais", "r$", "limite", "teto", "tetos", "fechamento", "resumo", "relatorio",
   "relatório", "opcao", "opção", "primeir", "segund", "terceir", "detalhe", "extrato",
+  "alerta", "alertas", "monitor", "ating", "estour", "ultrapass", "meta", "metas", "porcento", "%",
 ];
 
 const blockedExternalTerms = [
@@ -756,22 +779,139 @@ export class IaService {
           };
         }
 
-        // --- 3. Categorias ---
+        // --- 3. Categorias & Tetos Orçamentários ---
+        if (name === "monitorar_categorias") {
+          const hoje = new Date();
+          const ano = hoje.getFullYear();
+          const mes = hoje.getMonth();
+          const dePadrao = `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
+          const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+          const atePadrao = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
+
+          const de = args.de || dePadrao;
+          const ate = args.ate || atePadrao;
+
+          const start = new Date(de + "T00:00:00");
+          const end = new Date(ate + "T00:00:00");
+          const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          let monthMultiplier = 1;
+          if (diffDays > 35) {
+            const startYear = start.getFullYear();
+            const startMonth = start.getMonth();
+            const endYear = end.getFullYear();
+            const endMonth = end.getMonth();
+            const exactMonths = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+            monthMultiplier = Math.max(1, exactMonths > 0 ? exactMonths : Math.round(diffDays / 30.4375));
+          }
+
+          const despesasPeriodo = filterRecords(registros, {
+            ...args,
+            tipo: "despesa",
+            de,
+            ate,
+          }).filter((r) => r.status !== "cancelado");
+
+          const todasCategorias = await this.categoriaServ.buscarTodasCategorias();
+
+          let categoriasParaAuditar = todasCategorias;
+          if (args.categoria) {
+            const termo = String(args.categoria).toLowerCase().trim();
+            categoriasParaAuditar = todasCategorias.filter((c: any) =>
+              c.id === args.categoria || c.descricao.toLowerCase().includes(termo)
+            );
+          }
+
+          const statusCategorias = categoriasParaAuditar.map((cat: any) => {
+            const tetoMensal = Number(cat.teto ?? (cat as any).orcamentoMensal ?? 0);
+            const tetoEfetivo = tetoMensal * monthMultiplier;
+            const gastosCat = despesasPeriodo.filter((r) => r.categoriaId === cat.id || r.categoria === cat.descricao);
+            const valorGasto = gastosCat.reduce((sum, r) => sum + Number(r.valor), 0);
+            const percentual = tetoEfetivo > 0 ? Math.round((valorGasto / tetoEfetivo) * 100) : 0;
+
+            let nivelAlerta: "normal" | "amarelo_60" | "laranja_80" | "vermelho_100" = "normal";
+            let statusTexto = "Dentro da meta";
+
+            if (tetoEfetivo > 0) {
+              if (percentual >= 100) {
+                nivelAlerta = "vermelho_100";
+                statusTexto = "100% do limite atingido (Teto orçamentário estourado/alcançado)";
+              } else if (percentual >= 80) {
+                nivelAlerta = "laranja_80";
+                statusTexto = "80% do limite atingido (Atenção alta - próximo do limite)";
+              } else if (percentual >= 60) {
+                nivelAlerta = "amarelo_60";
+                statusTexto = "60% do limite atingido (Atenção inicial)";
+              }
+            }
+
+            return {
+              categoriaId: cat.id,
+              categoria: cat.descricao,
+              tetoMensal,
+              tetoEfetivo,
+              multiplicadorMeses: monthMultiplier,
+              valorGasto: Number(valorGasto.toFixed(2)),
+              saldoRestante: Number(Math.max(0, tetoEfetivo - valorGasto).toFixed(2)),
+              valorExcedido: valorGasto > tetoEfetivo && tetoEfetivo > 0 ? Number((valorGasto - tetoEfetivo).toFixed(2)) : 0,
+              percentual,
+              nivelAlerta,
+              atingiu60: percentual >= 60 && tetoEfetivo > 0,
+              atingiu80: percentual >= 80 && tetoEfetivo > 0,
+              atingiu100: percentual >= 100 && tetoEfetivo > 0,
+              statusTexto,
+              quantidadeLancamentos: gastosCat.length,
+            };
+          });
+
+          let filtradas = statusCategorias;
+          if (args.apenasAlertas) {
+            filtradas = filtradas.filter((c) => c.atingiu60);
+          }
+          if (args.nivelMinimo) {
+            filtradas = filtradas.filter((c) => c.percentual >= Number(args.nivelMinimo) && c.tetoEfetivo > 0);
+          }
+
+          const categorias100 = statusCategorias.filter((c) => c.atingiu100);
+          const categorias80 = statusCategorias.filter((c) => c.atingiu80 && !c.atingiu100);
+          const categorias60 = statusCategorias.filter((c) => c.atingiu60 && !c.atingiu80);
+
+          return {
+            periodo: { de, ate, mesesConsiderados: monthMultiplier },
+            totalCategoriasComTeto: statusCategorias.filter((c) => c.tetoEfetivo > 0).length,
+            resumoAlertas: {
+              total100Porcento: categorias100.length,
+              total80Porcento: categorias80.length,
+              total60Porcento: categorias60.length,
+            },
+            categorias100Porcento: categorias100,
+            categorias80Porcento: categorias80,
+            categorias60Porcento: categorias60,
+            todasCategorias: filtradas.sort((a, b) => b.percentual - a.percentual),
+          };
+        }
+
         if (name === "listar_categorias") {
           const categorias = await this.categoriaServ.buscarTodasCategorias();
-          return categorias.map((c: any) => ({ id: c.id, descricao: c.descricao, cor: c.cor, icone: c.iconName || c.icone }));
+          return categorias.map((c: any) => ({
+            id: c.id,
+            descricao: c.descricao,
+            teto: c.teto !== null && c.teto !== undefined ? Number(c.teto) : null,
+            cor: c.cor,
+            icone: c.iconName || c.icone,
+          }));
         }
 
         if (name === "criar_categoria") {
           const cat = await this.categoriaServ.criarCategoria({
             descricao: args.descricao,
+            teto: args.teto !== undefined ? (args.teto !== null ? Number(args.teto) : null) : undefined,
             cor: args.cor || "#10B981",
             iconName: args.icone || args.iconName || "Folder",
           });
           acaoRealizada = { tipo: "categoria_criada", payload: cat };
           return {
             sucesso: true,
-            mensagem: `Categoria '${cat.descricao}' criada com sucesso.`,
+            mensagem: `Categoria '${cat.descricao}' criada com sucesso${cat.teto ? ` com teto de R$ ${Number(cat.teto).toFixed(2)}` : ""}.`,
             categoria: cat,
           };
         }
@@ -782,15 +922,18 @@ export class IaService {
             return { erro: "Categoria nao encontrada para alteracao." };
           }
 
-          const updated = await this.categoriaServ.atualizarCategoria(cat.id, {
-            descricao: args.novaDescricao || cat.descricao,
-            cor: args.novaCor || cat.cor,
-            iconName: args.novoIcone || args.novoIconName || (cat as any).iconName || "Folder",
-          });
+          const alteracoes: any = {};
+          if (args.novaDescricao) alteracoes.descricao = args.novaDescricao;
+          if (args.novaCor) alteracoes.cor = args.novaCor;
+          if (args.novoIcone || args.novoIconName) alteracoes.iconName = args.novoIcone || args.novoIconName;
+          if (args.novoTeto !== undefined) alteracoes.teto = args.novoTeto !== null ? Number(args.novoTeto) : null;
+          if (args.teto !== undefined) alteracoes.teto = args.teto !== null ? Number(args.teto) : null;
+
+          const updated = await this.categoriaServ.atualizarCategoria(cat.id, alteracoes);
           acaoRealizada = { tipo: "categoria_alterada", payload: updated };
           return {
             sucesso: true,
-            mensagem: `Categoria renomeada para '${updated.descricao}'.`,
+            mensagem: `Categoria '${updated.descricao}' atualizada com sucesso.`,
             categoria: updated,
           };
         }
