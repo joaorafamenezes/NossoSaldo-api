@@ -48,6 +48,8 @@ const systemInstructions = [
   "Quando pedir para desfazer pagamento ou reabrir um gasto (ex: 'desfaca o pagamento da internet'), execute desfazer_pagamento_gasto.",
   "Quando pedir para excluir ou remover um gasto, execute excluir_gasto.",
   "Quando pedir informacoes ou gerenciamento de categorias, execute listar_categorias, criar_categoria ou alterar_categoria.",
+  "Quando o usuario perguntar sobre tetos de gastos, limites de categorias, orcamentos por categoria, ou quais categorias atingiram 60%, 80% ou 100% do limite (ex: 'quais categorias estouraram', 'quais categorias atingiram 100% do limite configurado', 'como estao meus limites por categoria', 'monitore as categorias'), execute a ferramenta monitorar_categorias.",
+  "Voce tem total autonomia e proatividade para monitorar os tetos e orcamentos das categorias, informando claramente quais categorias atingiram alertas de 60% (atencao), 80% (alerta) ou 100% (critico/estourado) e os valores gastos vs limites configurados.",
   "Quando pedir informacoes sobre cartoes de credito, limites ou dias de fechamento/vencimento, execute consultar_cartoes.",
   "Quando pedir informacoes sobre faturas ou valores de faturas, execute consultar_faturas_cartao ou consultar_gastos_fatura.",
   "Quando pedir para pagar a fatura de um cartao, execute pagar_fatura_cartao.",
