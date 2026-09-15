@@ -277,7 +277,18 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
         orderBy: { createdAt: "desc" },
       });
 
-      return gastos.map((gasto) => ({
+      const gastosFiltrados = gastos.filter((gasto) => {
+        if (!dateRange) return true;
+        const isChildRecorrente = Boolean(gasto.recorrenciaPaiId && gasto.recorrenciaPaiId !== gasto.id);
+        if (isChildRecorrente) {
+          if (!gasto.dataVencimento) return false;
+          const venc = new Date(gasto.dataVencimento);
+          return venc >= dateRange.start && venc <= dateRange.end;
+        }
+        return true;
+      });
+
+      return gastosFiltrados.map((gasto) => ({
         ...gasto,
         valor: Number(gasto.valor),
         responsavelNome: gasto.responsavel.nome,

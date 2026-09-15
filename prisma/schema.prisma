@@ -24,6 +24,12 @@ enum OrigemLancamento {
   parcelado
 }
 
+enum FrequenciaRecorrencia {
+  mensal
+  anual
+  semanal
+}
+
 enum StatusFaturaCartao {
   aberta
   fechada
@@ -49,6 +55,7 @@ model Usuario {
   contasComoPrimeiro      ContaConjunta[]          @relation("Usuario1")
   contasComoSegundo       ContaConjunta[]          @relation("Usuario2")
   gastosComoResponsavel   Gasto[]                  @relation("Responsavel")
+  recorrenciasComoResponsavel Recorrencia[]        @relation("RecorrenciaResponsavel")
   cartoesCredito          CartaoCredito[]
   iaConfiguracao           IaConfiguracao?
   iaConversas              IaConversa[]
@@ -113,14 +120,15 @@ model ContaConjunta {
 }
 
 model Categoria {
-  id        String   @id @default(uuid())
-  descricao String
-  iconName  String   @default("🏷️")
-  cor       String   @default("#10b981")
-  teto      Decimal? @db.Decimal(10, 2)
-  gastos    Gasto[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String        @id @default(uuid())
+  descricao    String
+  iconName     String        @default("🏷️")
+  cor          String        @default("#10b981")
+  teto         Decimal?      @db.Decimal(10, 2)
+  gastos       Gasto[]
+  recorrencias Recorrencia[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model CartaoCredito {
@@ -137,6 +145,7 @@ model CartaoCredito {
   usuarioId      String
   usuario        Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   gastos         Gasto[]
+  recorrencias   Recorrencia[]
   faturas        FaturaCartao[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -192,6 +201,8 @@ model Gasto {
   recorrenciaPaiId      String?
   recorrenciaPai        Gasto?           @relation("GastoRecorrencia", fields: [recorrenciaPaiId], references: [id])
   recorrencias          Gasto[]          @relation("GastoRecorrencia")
+  recorrenciaId         String?
+  recorrencia           Recorrencia?     @relation(fields: [recorrenciaId], references: [id])
   dataInicioRecorrencia DateTime?
   dataFimRecorrencia    DateTime?
   lancamentosBase       LancamentoBase[]
@@ -204,7 +215,41 @@ model Gasto {
   @@index([cartaoCreditoId])
   @@index([faturaCartaoId])
   @@index([recorrenciaPaiId])
+  @@index([recorrenciaId])
   @@unique([recorrenciaPaiId, competencia])
+}
+
+model Recorrencia {
+  id              String                @id @default(uuid())
+  descricao       String
+  tipo            TipoGasto
+  valor           Decimal               @db.Decimal(10, 2)
+  diaVencimento   Int
+  frequencia      FrequenciaRecorrencia @default(mensal)
+  dataInicio      DateTime
+  dataFim         DateTime?
+  pausado         Boolean               @default(false)
+  dataPausaInicio DateTime?
+  dataPausaFim    DateTime?
+  motivoPausa     String?               @db.Text
+  naoCompartilhar Boolean               @default(false)
+  observacao      String?               @db.Text
+  categoriaId     String
+  categoria       Categoria             @relation(fields: [categoriaId], references: [id])
+  responsavelId   String
+  responsavel     Usuario               @relation("RecorrenciaResponsavel", fields: [responsavelId], references: [id])
+  cartaoCreditoId String?
+  cartaoCredito   CartaoCredito?        @relation(fields: [cartaoCreditoId], references: [id])
+  gastos          Gasto[]
+  deletedAt       DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([responsavelId])
+  @@index([categoriaId])
+  @@index([cartaoCreditoId])
+  @@index([dataInicio, dataFim])
+  @@index([pausado])
 }
 
 model LancamentoBase {

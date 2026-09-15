@@ -16,4 +16,6 @@ export default interface iAtualizarGasto {
     recorrenciaPaiId?: string | null;
     dataInicioRecorrencia?: Date | null;
     dataFimRecorrencia?: Date | null;
+    escopoEdicao?: "THIS_ONLY" | "THIS_AND_FUTURE" | "ALL_SERIES";
+    targetCompetencia?: string | Date | null;
 }
