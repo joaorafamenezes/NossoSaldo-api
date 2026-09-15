@@ -53,6 +53,24 @@ jest.mock("../../repositories/faturaCartao/faturaCartaoRepository", () => ({
   },
 }));
 
+jest.mock("../../repositories/recorrencia/recorrenciaRepository", () => ({
+  recorrenciaRepository: {
+    listarRecorrencias: jest.fn().mockResolvedValue([]),
+    listarRecorrenciasPorUsuario: jest.fn().mockResolvedValue([]),
+    listarRecorrenciasAtivasNoPeriodo: jest.fn().mockResolvedValue([]),
+    buscarRecorrenciaPorId: jest.fn().mockResolvedValue(null),
+    criarRecorrencia: jest.fn().mockResolvedValue({}),
+    atualizarRecorrencia: jest.fn().mockResolvedValue({}),
+    deletarRecorrencia: jest.fn().mockResolvedValue({}),
+  },
+}));
+
+jest.mock("../recorrencia/projecaoRecorrenciaService", () => ({
+  projecaoRecorrenciaService: {
+    gerarProjecoesJIT: jest.fn((gastosFisicos) => gastosFisicos),
+  },
+}));
+
 describe("GastoService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
