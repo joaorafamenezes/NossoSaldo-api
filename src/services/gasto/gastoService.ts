@@ -474,9 +474,18 @@ class GastoService {
             throw createHttpError(403, "Usuario nao autorizado a atualizar este gasto.");
         }
 
-        const cartao = await this.validarCartaoCreditoPermitido(data.cartaoCreditoId, userId);
+        const cartaoCreditoId = data.cartaoCreditoId !== undefined ? data.cartaoCreditoId : (gasto as any).cartaoCreditoId;
+        const cartao = await this.validarCartaoCreditoPermitido(cartaoCreditoId, userId);
 
-        if (gasto.origemLancamento === "recorrente") {
+        const novaOrigem = data.origemLancamento ?? gasto.origemLancamento;
+        const faturasParaRecalcular = new Set<string>();
+
+        if ((gasto as any).faturaCartaoId) {
+            faturasParaRecalcular.add((gasto as any).faturaCartaoId);
+        }
+
+        // Caso 1: Mantem como recorrente
+        if (gasto.origemLancamento === "recorrente" && novaOrigem === "recorrente") {
             const recorrenciaPaiId = (gasto as any).recorrenciaPaiId ?? gasto.id;
             const gastoRaiz = recorrenciaPaiId === gasto.id
                 ? gasto
@@ -491,7 +500,111 @@ class GastoService {
             return await gastoRepository.buscarGastoPorId(id);
         }
 
-        return await gastoRepository.atualizarGasto(id, data);
+        // Caso 2: Transicao de Recorrente para Unico ou Parcelado
+        if (gasto.origemLancamento === "recorrente" && novaOrigem !== "recorrente") {
+            const recorrenciaPaiId = (gasto as any).recorrenciaPaiId ?? gasto.id;
+            const registrosSerie = await gastoRepository.listarGastosDaSerieRecorrente(recorrenciaPaiId);
+
+            for (const registro of registrosSerie) {
+                if (registro.id !== id && registro.status === "pendente") {
+                    if ((registro as any).faturaCartaoId) {
+                        faturasParaRecalcular.add((registro as any).faturaCartaoId);
+                    }
+                    await gastoRepository.deletarGasto(registro.id);
+                }
+            }
+
+            const updatePayload: iAtualizarGasto = {
+                ...data,
+                origemLancamento: novaOrigem,
+                recorrenciaPaiId: null,
+                dataInicioRecorrencia: null,
+                dataFimRecorrencia: null,
+                numeroParcelas: novaOrigem === "parcelado" ? (data.numeroParcelas || gasto.numeroParcelas || 2) : 1,
+            };
+
+            if (cartao && novaOrigem !== "parcelado") {
+                const dataVenc = updatePayload.dataVencimento ?? gasto.dataVencimento ?? new Date();
+                const fatura = await faturaCartaoRepository.buscarOuCriarFaturaPorCompetencia(cartao, new Date(dataVenc));
+                updatePayload.faturaCartaoId = fatura.id;
+                faturasParaRecalcular.add(fatura.id);
+            } else if (!cartao) {
+                updatePayload.faturaCartaoId = null;
+            }
+
+            const gastoAtualizado = await gastoRepository.atualizarGasto(id, updatePayload);
+
+            if (cartao && novaOrigem === "parcelado") {
+                const parcelas = await gastoRepository.listarLancamentosBasePorGastoId(id);
+                for (const parcela of parcelas) {
+                    const fatura = await faturaCartaoRepository.buscarOuCriarFaturaPorCompetencia(cartao, parcela.dataVencimentoParcela);
+                    await gastoRepository.vincularLancamentoBaseAFatura(parcela.id, fatura.id);
+                    faturasParaRecalcular.add(fatura.id);
+                }
+            }
+
+            for (const faturaId of faturasParaRecalcular) {
+                await faturaCartaoRepository.recalcularValorTotal(faturaId);
+            }
+
+            return gastoAtualizado;
+        }
+
+        // Caso 3: Transicao de Unico / Parcelado para Recorrente
+        if (gasto.origemLancamento !== "recorrente" && novaOrigem === "recorrente") {
+            const dataVenc = data.dataVencimento ?? gasto.dataVencimento ?? new Date();
+            const updatePayload: iAtualizarGasto = {
+                ...data,
+                origemLancamento: "recorrente",
+                numeroParcelas: 1,
+                recorrenciaPaiId: null,
+                dataInicioRecorrencia: new Date(dataVenc),
+                dataFimRecorrencia: data.dataFimRecorrencia ?? null,
+            };
+
+            if (cartao) {
+                const fatura = await faturaCartaoRepository.buscarOuCriarFaturaPorCompetencia(cartao, new Date(dataVenc));
+                updatePayload.faturaCartaoId = fatura.id;
+                faturasParaRecalcular.add(fatura.id);
+            } else {
+                updatePayload.faturaCartaoId = null;
+            }
+
+            const gastoAtualizado = await gastoRepository.atualizarGasto(id, updatePayload);
+
+            for (const faturaId of faturasParaRecalcular) {
+                await faturaCartaoRepository.recalcularValorTotal(faturaId);
+            }
+
+            return gastoAtualizado;
+        }
+
+        // Caso 4: Transicoes Unico <-> Parcelado ou Atualizacao Regular
+        if (cartao && novaOrigem !== "parcelado") {
+            const dataVenc = data.dataVencimento ?? gasto.dataVencimento ?? new Date();
+            const fatura = await faturaCartaoRepository.buscarOuCriarFaturaPorCompetencia(cartao, new Date(dataVenc));
+            data.faturaCartaoId = fatura.id;
+            faturasParaRecalcular.add(fatura.id);
+        } else if (!cartao && novaOrigem !== "parcelado") {
+            data.faturaCartaoId = null;
+        }
+
+        const gastoAtualizado = await gastoRepository.atualizarGasto(id, data);
+
+        if (cartao && novaOrigem === "parcelado") {
+            const parcelas = await gastoRepository.listarLancamentosBasePorGastoId(id);
+            for (const parcela of parcelas) {
+                const fatura = await faturaCartaoRepository.buscarOuCriarFaturaPorCompetencia(cartao, parcela.dataVencimentoParcela);
+                await gastoRepository.vincularLancamentoBaseAFatura(parcela.id, fatura.id);
+                faturasParaRecalcular.add(fatura.id);
+            }
+        }
+
+        for (const faturaId of faturasParaRecalcular) {
+            await faturaCartaoRepository.recalcularValorTotal(faturaId);
+        }
+
+        return gastoAtualizado;
     }
 
     async pagarGasto(id: string, data: iPagarGasto, userId: string) {

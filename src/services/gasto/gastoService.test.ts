@@ -486,6 +486,139 @@ describe("GastoService", () => {
       );
     });
 
+    it("should convert a recurring expense to unique by detaching the series and deleting pending future records", async () => {
+      const recurringRoot = {
+        id: "rec-root-1",
+        descricao: "Plano Academia",
+        tipo: "despesa",
+        status: "pendente",
+        origemLancamento: "recorrente",
+        valor: 150,
+        responsavelId: "user-1",
+        dataVencimento: new Date(2026, 8, 10),
+        recorrenciaPaiId: "rec-root-1",
+      };
+      const futurePending = {
+        id: "rec-child-oct",
+        descricao: "Plano Academia",
+        status: "pendente",
+        origemLancamento: "recorrente",
+        recorrenciaPaiId: "rec-root-1",
+        faturaCartaoId: null,
+      };
+
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue(recurringRoot);
+      (gastoRepository.listarGastosDaSerieRecorrente as jest.Mock).mockResolvedValue([
+        recurringRoot,
+        futurePending,
+      ]);
+      (gastoRepository.deletarGasto as jest.Mock).mockResolvedValue(true);
+      (gastoRepository.atualizarGasto as jest.Mock).mockResolvedValue({
+        ...recurringRoot,
+        origemLancamento: "unico",
+      });
+
+      const payload = { origemLancamento: "unico" };
+      await gastoService.atualizarGasto("rec-root-1", payload as any, "user-1");
+
+      expect(gastoRepository.deletarGasto).toHaveBeenCalledWith("rec-child-oct");
+      expect(gastoRepository.atualizarGasto).toHaveBeenCalledWith(
+        "rec-root-1",
+        expect.objectContaining({
+          origemLancamento: "unico",
+          recorrenciaPaiId: null,
+          dataInicioRecorrencia: null,
+          dataFimRecorrencia: null,
+          numeroParcelas: 1,
+        }),
+      );
+    });
+
+    it("should convert a recurring expense to installment and link parcelas to invoices if card is present", async () => {
+      const recurringRoot = {
+        id: "rec-root-2",
+        descricao: "Seguro Carro",
+        tipo: "despesa",
+        status: "pendente",
+        origemLancamento: "recorrente",
+        valor: 600,
+        responsavelId: "user-1",
+        cartaoCreditoId: "card-1",
+        dataVencimento: new Date(2026, 8, 15),
+        recorrenciaPaiId: "rec-root-2",
+      };
+
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue(recurringRoot);
+      (cartaoCreditoRepository.buscarCartaoCreditoPorId as jest.Mock).mockResolvedValue({
+        id: "card-1",
+        usuarioId: "user-1",
+      });
+      (gastoRepository.listarGastosDaSerieRecorrente as jest.Mock).mockResolvedValue([recurringRoot]);
+      (gastoRepository.atualizarGasto as jest.Mock).mockResolvedValue({
+        ...recurringRoot,
+        origemLancamento: "parcelado",
+        numeroParcelas: 3,
+      });
+      (gastoRepository.listarLancamentosBasePorGastoId as jest.Mock).mockResolvedValue([
+        { id: "parc-1", dataVencimentoParcela: new Date(2026, 8, 15) },
+        { id: "parc-2", dataVencimentoParcela: new Date(2026, 9, 15) },
+        { id: "parc-3", dataVencimentoParcela: new Date(2026, 10, 15) },
+      ]);
+      (faturaCartaoRepository.buscarOuCriarFaturaPorCompetencia as jest.Mock)
+        .mockResolvedValue({ id: "fat-xyz" });
+
+      const payload = {
+        origemLancamento: "parcelado",
+        numeroParcelas: 3,
+        cartaoCreditoId: "card-1",
+      };
+
+      await gastoService.atualizarGasto("rec-root-2", payload as any, "user-1");
+
+      expect(gastoRepository.atualizarGasto).toHaveBeenCalledWith(
+        "rec-root-2",
+        expect.objectContaining({
+          origemLancamento: "parcelado",
+          numeroParcelas: 3,
+          recorrenciaPaiId: null,
+        }),
+      );
+      expect(gastoRepository.vincularLancamentoBaseAFatura).toHaveBeenCalledTimes(3);
+      expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fat-xyz");
+    });
+
+    it("should convert a unique expense to recurring", async () => {
+      const uniqueExpense = {
+        id: "gst-unico-1",
+        descricao: "Internet",
+        tipo: "despesa",
+        status: "pendente",
+        origemLancamento: "unico",
+        valor: 120,
+        responsavelId: "user-1",
+        dataVencimento: new Date(2026, 8, 20),
+      };
+
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue(uniqueExpense);
+      (gastoRepository.atualizarGasto as jest.Mock).mockResolvedValue({
+        ...uniqueExpense,
+        origemLancamento: "recorrente",
+      });
+
+      const payload = { origemLancamento: "recorrente" };
+      await gastoService.atualizarGasto("gst-unico-1", payload as any, "user-1");
+
+      expect(gastoRepository.atualizarGasto).toHaveBeenCalledWith(
+        "gst-unico-1",
+        expect.objectContaining({
+          origemLancamento: "recorrente",
+          numeroParcelas: 1,
+          recorrenciaPaiId: null,
+          dataInicioRecorrencia: expect.any(Date),
+        }),
+      );
+    });
+
     it("should throw 404 when gasto does not exist during update", async () => {
       (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue(null);
 

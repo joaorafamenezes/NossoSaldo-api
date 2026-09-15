@@ -44,8 +44,15 @@ const updateGastoSchema = joi.object({
         "string.base": "O cartao de credito deve ser um texto.",
         "string.uuid": "O cartao de credito deve ser um UUID valido.",
     }),
+    dataInicioRecorrencia: joi.date().allow(null).messages({
+        "date.base": "A data de inicio da recorrencia deve ser uma data valida.",
+    }),
     dataFimRecorrencia: joi.date().allow(null).messages({
         "date.base": "A data de fim da recorrencia deve ser uma data valida.",
+    }),
+    recorrenciaPaiId: joi.string().uuid().allow(null).messages({
+        "string.base": "O ID da recorrencia pai deve ser um texto.",
+        "string.uuid": "O ID da recorrencia pai deve ser um UUID valido.",
     }),
 })
     .min(1)
