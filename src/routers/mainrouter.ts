@@ -8,6 +8,7 @@ import { cartaoCreditoRouter } from "./cartaoCredito/cartaoCreditoRouter";
 import { faturaCartaoRouter } from "./faturaCartao/faturaCartaoRouter";
 import { insightsRouter } from "./insights/insightsRouter";
 import { iaRouter } from "./ia/iaRouter";
+import { recorrenciaRouter } from "./recorrencia/recorrenciaRouter";
 
 const router = Router();
 
@@ -26,5 +27,6 @@ router.use(cartaoCreditoRouter);
 router.use(faturaCartaoRouter);
 router.use(insightsRouter);
 router.use(iaRouter);
+router.use(recorrenciaRouter);
 
 export { router };

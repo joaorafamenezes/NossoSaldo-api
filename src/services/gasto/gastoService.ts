@@ -6,6 +6,8 @@ import { contaConjuntaRepository } from "../../repositories/contaConjunta/contaC
 import { cartaoCreditoRepository } from "../../repositories/cartaoCredito/cartaoCreditoRepository";
 import { faturaCartaoRepository } from "../../repositories/faturaCartao/faturaCartaoRepository";
 import { gastoRepository } from "../../repositories/gasto/gastoRepository";
+import { recorrenciaRepository } from "../../repositories/recorrencia/recorrenciaRepository";
+import { projecaoRecorrenciaService } from "../recorrencia/projecaoRecorrenciaService";
 import { usuarioRepository } from "../../repositories/usuario/usuarioRepository";
 
 class GastoService {
@@ -71,10 +73,15 @@ class GastoService {
         alteracoes: iAtualizarGasto,
         gastoRaiz: any,
         cartao: any,
+        allSeries = false,
     ) {
         const recorrenciaPaiId = gastoRaiz.id;
-        const competenciaInicial = this.getCompetenciaBase(gastoBase);
-        const dataInicioRecorrencia = gastoRaiz.dataInicioRecorrencia ?? gastoBase.dataInicioRecorrencia ?? gastoBase.dataVencimento;
+        const competenciaInicial = alteracoes.targetCompetencia
+            ? this.getInicioMes(new Date(alteracoes.targetCompetencia))
+            : this.getCompetenciaBase(gastoBase);
+        const dataInicioRecorrencia = allSeries
+            ? (gastoRaiz.dataInicioRecorrencia ?? gastoBase.dataInicioRecorrencia ?? gastoBase.dataVencimento)
+            : (alteracoes.targetCompetencia ? new Date(alteracoes.targetCompetencia) : (gastoRaiz.dataInicioRecorrencia ?? gastoBase.dataInicioRecorrencia ?? gastoBase.dataVencimento));
         const dataFimRecorrencia = alteracoes.dataFimRecorrencia !== undefined
             ? alteracoes.dataFimRecorrencia
             : (gastoBase.dataFimRecorrencia ?? gastoRaiz.dataFimRecorrencia ?? null);
@@ -95,10 +102,52 @@ class GastoService {
         }
 
         const registrosSerie = await gastoRepository.listarGastosDaSerieRecorrente(recorrenciaPaiId);
-        const registrosPorMes = new Map(
-            registrosSerie.map((registro: any) => [this.getMesKey(this.getCompetenciaBase(registro)), registro]),
-        );
         const faturasParaRecalcular = new Set<string>();
+
+        // Se a edicao com THIS_AND_FUTURE comeca apos a raiz, preserva o historico da raiz como registro independente
+        const competenciaRaiz = this.getCompetenciaBase(gastoRaiz);
+        if (!allSeries && competenciaInicial.getTime() > competenciaRaiz.getTime()) {
+            const chaveMesRaiz = this.getMesKey(competenciaRaiz);
+            const jaExisteHistoricoRaiz = registrosSerie.some(
+                (r: any) => r.id !== gastoRaiz.id && this.getMesKey(this.getCompetenciaBase(r)) === chaveMesRaiz
+            );
+
+            if (!jaExisteHistoricoRaiz) {
+                await gastoRepository.criarGastoUsuarioLogado({
+                    descricao: gastoRaiz.descricao,
+                    tipo: gastoRaiz.tipo,
+                    status: gastoRaiz.status,
+                    origemLancamento: "recorrente",
+                    numeroParcelas: 1,
+                    naoCompartilhar: Boolean(gastoRaiz.naoCompartilhar),
+                    valor: Number(gastoRaiz.valor),
+                    competencia: competenciaRaiz,
+                    dataVencimento: gastoRaiz.dataVencimento,
+                    dataPagamento: gastoRaiz.dataPagamento,
+                    observacao: gastoRaiz.observacao ?? undefined,
+                    categoriaId: gastoRaiz.categoriaId,
+                    responsavelId: gastoRaiz.responsavelId,
+                    cartaoCreditoId: gastoRaiz.cartaoCreditoId ?? null,
+                    faturaCartaoId: gastoRaiz.faturaCartaoId ?? null,
+                    recorrenciaPaiId: gastoRaiz.id,
+                    dataInicioRecorrencia: gastoRaiz.dataInicioRecorrencia ?? null,
+                    dataFimRecorrencia: gastoRaiz.dataFimRecorrencia ?? null,
+                });
+            }
+        }
+
+        const registrosSerieAtualizados = await gastoRepository.listarGastosDaSerieRecorrente(recorrenciaPaiId);
+        const registrosPorMes = new Map(
+            registrosSerieAtualizados.map((registro: any) => [this.getMesKey(this.getCompetenciaBase(registro)), registro]),
+        );
+
+        if (!allSeries && competenciaInicial.getTime() > competenciaRaiz.getTime()) {
+            const chaveCompInicial = this.getMesKey(competenciaInicial);
+            if (!registrosPorMes.has(chaveCompInicial)) {
+                registrosPorMes.set(chaveCompInicial, gastoRaiz);
+            }
+        }
+
         const camposEmCascata: iAtualizarGasto = {
             descricao: alteracoes.descricao ?? gastoBase.descricao,
             tipo: alteracoes.tipo ?? gastoBase.tipo,
@@ -110,11 +159,22 @@ class GastoService {
             dataInicioRecorrencia: dataInicioRecorrencia ? new Date(dataInicioRecorrencia) : null,
             dataFimRecorrencia: dataFimRecorrencia ? new Date(dataFimRecorrencia) : null,
         };
+        const inicioRange = allSeries
+            ? (dataInicioRecorrencia ? this.getInicioMes(new Date(dataInicioRecorrencia)) : competenciaInicial)
+            : competenciaInicial;
         const mesesDesejados = dataFimRecorrencia
-            ? this.getMesesNoPeriodo(competenciaInicial, new Date(dataFimRecorrencia))
-            : registrosSerie
-                .map((registro: any) => this.getCompetenciaBase(registro))
-                .filter((competencia) => this.isMesmoOuDepois(competencia, competenciaInicial));
+            ? this.getMesesNoPeriodo(inicioRange, new Date(dataFimRecorrencia))
+            : [
+                ...new Set([
+                    this.getMesKey(competenciaInicial),
+                    ...registrosSerieAtualizados.map((registro: any) => this.getMesKey(this.getCompetenciaBase(registro)))
+                ])
+            ]
+                .map((key) => {
+                    const [year, month] = key.split("-").map(Number);
+                    return new Date(year, month - 1, 1);
+                })
+                .filter((competencia) => allSeries || this.isMesmoOuDepois(competencia, competenciaInicial));
 
         if (alteracoes.dataFimRecorrencia !== undefined) {
             for (const registro of registrosSerie) {
@@ -412,7 +472,39 @@ class GastoService {
             throw createHttpError(404, "Usuario nao encontrado.");
         }
 
-        return await gastoRepository.listarGastosPorResponsavelId(responsavelId, filtros);
+        const gastosFisicos = await gastoRepository.listarGastosPorResponsavelId(responsavelId, filtros);
+
+        let de: Date | null = null;
+        let ate: Date | null = null;
+
+        if (filtros?.de && filtros?.ate) {
+            de = this.parseCalendarDate(filtros.de);
+            ate = this.parseCalendarDate(filtros.ate, true);
+        } else if (filtros?.competencia) {
+            const [ano, mes] = filtros.competencia.split("-").map(Number);
+            if (ano && mes) {
+                de = new Date(Date.UTC(ano, mes - 1, 1, 0, 0, 0, 0));
+                ate = new Date(Date.UTC(ano, mes, 0, 23, 59, 59, 999));
+            }
+        }
+
+        if (de && ate && !Number.isNaN(de.getTime()) && !Number.isNaN(ate.getTime())) {
+            const contasConjuntas = await contaConjuntaRepository.listarContasConjuntasPorUsuarioId(responsavelId);
+            const usuariosCompartilhadosIds = Array.from(new Set([
+                responsavelId,
+                ...contasConjuntas.map((c) => (c.usuario1Id === responsavelId ? c.usuario2Id : c.usuario1Id)),
+            ]));
+
+            const recorrenciasAtivas = await recorrenciaRepository.listarRecorrenciasAtivasNoPeriodo(
+                usuariosCompartilhadosIds,
+                de,
+                ate,
+            );
+
+            return projecaoRecorrenciaService.gerarProjecoesJIT(gastosFisicos, recorrenciasAtivas, { de, ate });
+        }
+
+        return gastosFisicos;
     }
 
     async buscarTotalGastoMesAtualPorResponsavelId(responsavelId: string) {
@@ -495,7 +587,81 @@ class GastoService {
                 throw createHttpError(404, "Modelo da recorrencia nao encontrado.");
             }
 
-            await this.sincronizarSerieRecorrente(gasto as any, data, gastoRaiz as any, cartao);
+            const escopo = data.escopoEdicao ?? "THIS_AND_FUTURE";
+
+            if (escopo === "THIS_ONLY") {
+                const targetCompRaw = data.targetCompetencia ?? data.competencia ?? gasto.competencia ?? gasto.dataVencimento ?? new Date();
+                const targetComp = this.getInicioMes(new Date(targetCompRaw));
+                const targetKey = this.getMesKey(targetComp);
+
+                const registrosSerie = await gastoRepository.listarGastosDaSerieRecorrente(recorrenciaPaiId);
+                const registroExistente = registrosSerie.find(
+                    (r: any) => this.getMesKey(this.getCompetenciaBase(r)) === targetKey
+                );
+
+                const dataVencimentoReferencia = data.dataVencimento
+                    ? new Date(data.dataVencimento)
+                    : (registroExistente?.dataVencimento ? new Date(registroExistente.dataVencimento) : (gastoRaiz.dataVencimento ? new Date(gastoRaiz.dataVencimento) : new Date()));
+
+                const dataVencimento = gastoRepository.calcularDataVencimentoRecorrente(
+                    dataVencimentoReferencia,
+                    targetComp
+                );
+
+                const fatura = cartao
+                    ? await faturaCartaoRepository.buscarOuCriarFaturaPorCompetencia(cartao, dataVencimento)
+                    : null;
+
+                const payloadItem: iAtualizarGasto = {
+                    descricao: data.descricao !== undefined ? data.descricao : (registroExistente?.descricao ?? gasto.descricao),
+                    tipo: data.tipo !== undefined ? data.tipo : (registroExistente?.tipo ?? gasto.tipo),
+                    status: data.status !== undefined ? data.status : (registroExistente?.status ?? gasto.status),
+                    origemLancamento: "recorrente",
+                    numeroParcelas: 1,
+                    naoCompartilhar: data.naoCompartilhar !== undefined ? data.naoCompartilhar : (registroExistente?.naoCompartilhar ?? gasto.naoCompartilhar),
+                    valor: data.valor !== undefined ? Number(data.valor) : Number(registroExistente?.valor ?? gasto.valor),
+                    competencia: targetComp,
+                    dataVencimento,
+                    dataPagamento: data.dataPagamento !== undefined ? data.dataPagamento : (registroExistente?.dataPagamento ?? (data.status === "pago" ? dataVencimento : null)),
+                    observacao: data.observacao !== undefined ? data.observacao : (registroExistente?.observacao ?? gasto.observacao),
+                    categoriaId: data.categoriaId ?? (registroExistente?.categoriaId ?? gasto.categoriaId),
+                    cartaoCreditoId: cartao?.id ?? null,
+                    faturaCartaoId: fatura?.id ?? null,
+                    recorrenciaPaiId: gastoRaiz.id,
+                };
+
+                if (registroExistente) {
+                    if (registroExistente.faturaCartaoId) {
+                        faturasParaRecalcular.add(registroExistente.faturaCartaoId);
+                    }
+                    if (fatura?.id) {
+                        faturasParaRecalcular.add(fatura.id);
+                    }
+
+                    const atualizado = await gastoRepository.atualizarGasto(registroExistente.id, payloadItem);
+
+                    for (const faturaId of faturasParaRecalcular) {
+                        await faturaCartaoRepository.recalcularValorTotal(faturaId);
+                    }
+
+                    return atualizado;
+                } else {
+                    const novoGasto = await gastoRepository.criarGastoUsuarioLogado({
+                        ...payloadItem,
+                        responsavelId: (gasto as any).responsavelId ?? userId,
+                        dataInicioRecorrencia: (gastoRaiz as any).dataInicioRecorrencia ?? null,
+                        dataFimRecorrencia: (gastoRaiz as any).dataFimRecorrencia ?? null,
+                    } as any);
+
+                    if (fatura?.id) {
+                        await faturaCartaoRepository.recalcularValorTotal(fatura.id);
+                    }
+
+                    return novoGasto;
+                }
+            }
+
+            await this.sincronizarSerieRecorrente(gasto as any, data, gastoRaiz as any, cartao, escopo === "ALL_SERIES");
 
             return await gastoRepository.buscarGastoPorId(id);
         }

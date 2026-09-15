@@ -486,6 +486,65 @@ describe("GastoService", () => {
       );
     });
 
+    it("should update ONLY the target month when escopoEdicao is THIS_ONLY without touching other months", async () => {
+      const rootExpense = {
+        id: "rec-rge-root",
+        descricao: "RGE Energia",
+        tipo: "despesa",
+        status: "pendente",
+        origemLancamento: "recorrente",
+        valor: 200,
+        responsavelId: "user-1",
+        competencia: new Date(2026, 8, 1),
+        dataVencimento: new Date(2026, 8, 20),
+        recorrenciaPaiId: "rec-rge-root",
+      };
+      const octoberExpense = {
+        id: "rec-rge-oct",
+        descricao: "RGE Energia",
+        tipo: "despesa",
+        status: "pendente",
+        origemLancamento: "recorrente",
+        valor: 200,
+        responsavelId: "user-1",
+        competencia: new Date(2026, 9, 1),
+        dataVencimento: new Date(2026, 9, 20),
+        recorrenciaPaiId: "rec-rge-root",
+      };
+
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue(rootExpense);
+      (gastoRepository.listarGastosDaSerieRecorrente as jest.Mock).mockResolvedValue([
+        rootExpense,
+        octoberExpense,
+      ]);
+      (gastoRepository.calcularDataVencimentoRecorrente as jest.Mock).mockReturnValue(new Date(2026, 8, 20));
+      (gastoRepository.atualizarGasto as jest.Mock).mockResolvedValue({
+        ...rootExpense,
+        valor: 275.5,
+      });
+
+      const payload = {
+        valor: 275.5,
+        escopoEdicao: "THIS_ONLY",
+        targetCompetencia: "2026-09-01",
+      };
+
+      await gastoService.atualizarGasto("rec-rge-root", payload as any, "user-1");
+
+      // Deve atualizar SOMENTE o registro de setembro
+      expect(gastoRepository.atualizarGasto).toHaveBeenCalledTimes(1);
+      expect(gastoRepository.atualizarGasto).toHaveBeenCalledWith(
+        "rec-rge-root",
+        expect.objectContaining({
+          valor: 275.5,
+          origemLancamento: "recorrente",
+          recorrenciaPaiId: "rec-rge-root",
+        }),
+      );
+      // Não deve chamar atualizarGasto para o registro de outubro
+      expect(gastoRepository.atualizarGasto).not.toHaveBeenCalledWith("rec-rge-oct", expect.anything());
+    });
+
     it("should convert a recurring expense to unique by detaching the series and deleting pending future records", async () => {
       const recurringRoot = {
         id: "rec-root-1",

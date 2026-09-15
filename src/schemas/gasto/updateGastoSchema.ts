@@ -54,6 +54,12 @@ const updateGastoSchema = joi.object({
         "string.base": "O ID da recorrencia pai deve ser um texto.",
         "string.uuid": "O ID da recorrencia pai deve ser um UUID valido.",
     }),
+    escopoEdicao: joi.string().valid("THIS_ONLY", "THIS_AND_FUTURE", "ALL_SERIES").messages({
+        "any.only": "O escopo de edicao deve ser THIS_ONLY, THIS_AND_FUTURE ou ALL_SERIES.",
+    }),
+    targetCompetencia: joi.alternatives().try(joi.string(), joi.date()).allow(null).messages({
+        "alternatives.types": "A competencia alvo deve ser um texto ou data valida.",
+    }),
 })
     .min(1)
     .messages({

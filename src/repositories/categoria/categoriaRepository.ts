@@ -42,6 +42,23 @@ export class PrismaCategoriaRepository implements CategoriaRepositoryPort {
     }
   }
 
+  async buscarCategoriaPorId(id: string) {
+    try {
+      const categoria = await this.prisma.categoria.findUnique({
+        where: { id },
+      });
+
+      return categoria
+        ? {
+            ...categoria,
+            teto: categoria.teto ? Number(categoria.teto) : null,
+          }
+        : null;
+    } catch (error) {
+      throw createRepositoryError(error, "Nao foi possivel buscar a categoria.");
+    }
+  }
+
   async atualizarCategoria(id: string, categoria: Partial<iCriarCategoria>) {
     try {
       const updated = await this.prisma.categoria.update({
