@@ -959,4 +959,124 @@ describe("GastoService", () => {
       });
     });
   });
+
+  describe("gerarGastosRecorrentesDoMes & gerarGastosRecorrentesPorPeriodo", () => {
+    it("deve gerar gastos recorrentes do mes quando houver modelo ativo e ainda nao gerado", async () => {
+      const modelo = {
+        id: "modelo-1",
+        descricao: "Aluguel",
+        tipo: "despesa",
+        valor: 2000,
+        naoCompartilhar: false,
+        categoriaId: "cat-1",
+        responsavelId: "user-1",
+        dataInicioRecorrencia: new Date("2026-01-01"),
+        dataVencimento: new Date("2026-01-10"),
+        cartaoCreditoId: "cartao-1",
+      };
+
+      (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([]);
+      (gastoRepository.listarModelosRecorrentesAtivosPorResponsaveis as jest.Mock).mockResolvedValue([modelo]);
+      (gastoRepository.buscarGastoGeradoPorRecorrencia as jest.Mock).mockResolvedValue(null);
+      (gastoRepository.calcularDataVencimentoRecorrente as jest.Mock).mockReturnValue(new Date("2026-08-10"));
+      (cartaoCreditoRepository.buscarCartaoCreditoPorId as jest.Mock).mockResolvedValue({ id: "cartao-1", usuarioId: "user-1" });
+      (faturaCartaoRepository.buscarOuCriarFaturaPorCompetencia as jest.Mock).mockResolvedValue({ id: "fatura-1" });
+      (gastoRepository.criarGastoUsuarioLogado as jest.Mock).mockResolvedValue({ id: "gasto-gerado-1" });
+      (faturaCartaoRepository.recalcularValorTotal as jest.Mock).mockResolvedValue(true);
+
+      await gastoService.gerarGastosRecorrentesDoMes("user-1", new Date("2026-08-01"));
+
+      expect(gastoRepository.criarGastoUsuarioLogado).toHaveBeenCalledWith(
+        expect.objectContaining({
+          descricao: "Aluguel",
+          recorrenciaPaiId: "modelo-1",
+          faturaCartaoId: "fatura-1",
+        })
+      );
+      expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fatura-1");
+    });
+
+    it("deve pular geracao se gasto ja foi gerado ou se dataInicio for futura", async () => {
+      const modeloJaGerado = {
+        id: "modelo-2",
+        dataInicioRecorrencia: new Date("2026-01-01"),
+        dataVencimento: new Date("2026-01-10"),
+      };
+      const modeloFuturo = {
+        id: "modelo-3",
+        dataInicioRecorrencia: new Date("2026-09-01"),
+        dataVencimento: new Date("2026-09-10"),
+      };
+
+      (gastoRepository.listarModelosRecorrentesAtivosPorResponsaveis as jest.Mock).mockResolvedValue([
+        modeloJaGerado,
+        modeloFuturo,
+      ]);
+      (gastoRepository.buscarGastoGeradoPorRecorrencia as jest.Mock).mockResolvedValue({ id: "gasto-existente" });
+
+      await gastoService.gerarGastosRecorrentesDoMes("user-1", new Date("2026-08-01"));
+
+      expect(gastoRepository.criarGastoUsuarioLogado).not.toHaveBeenCalled();
+    });
+
+    it("deve iterar meses ao chamar gerarGastosRecorrentesPorPeriodo", async () => {
+      const spy = jest.spyOn(gastoService, "gerarGastosRecorrentesDoMes").mockResolvedValue(undefined as any);
+
+      await gastoService.gerarGastosRecorrentesPorPeriodo(
+        "user-1",
+        new Date("2026-08-01"),
+        new Date("2026-10-01")
+      );
+
+      expect(spy).toHaveBeenCalledTimes(3);
+      spy.mockRestore();
+    });
+  });
+
+  describe("validarCartaoCreditoPermitido & deletarGasto", () => {
+    it("deve permitir vincular cartao pertencente a conta conjunta", async () => {
+      (usuarioRepository.listarUsuarioPorId as jest.Mock).mockResolvedValue({ id: "user-1" });
+      (cartaoCreditoRepository.buscarCartaoCreditoPorId as jest.Mock).mockResolvedValue({
+        id: "cartao-partner",
+        usuarioId: "user-partner",
+      });
+      (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([
+        { usuario1Id: "user-1", usuario2Id: "user-partner" },
+      ]);
+      (faturaCartaoRepository.buscarOuCriarFatura as jest.Mock).mockResolvedValue({ id: "fatura-1" });
+      (gastoRepository.criarGastoUsuarioLogado as jest.Mock).mockResolvedValue({ id: "gasto-1" });
+
+      const res = await gastoService.criarGastoUsuarioLogado({
+        descricao: "Compra conjunta",
+        tipo: "despesa",
+        valor: 100,
+        responsavelId: "user-1",
+        cartaoCreditoId: "cartao-partner",
+        categoriaId: "cat-1",
+      } as any);
+
+      expect(res).toBeDefined();
+    });
+
+    it("deve deletar gasto e recalcular faturas vinculadas", async () => {
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue({
+        id: "gasto-1",
+        responsavelId: "user-1",
+        origemLancamento: "parcelado",
+        faturaCartaoId: "fatura-1",
+      });
+      (gastoRepository.listarLancamentosBasePorGastoId as jest.Mock).mockResolvedValue([
+        { id: "p1", faturaCartaoId: "fatura-2" },
+      ]);
+      (gastoRepository.deletarGasto as jest.Mock).mockResolvedValue(true);
+      (faturaCartaoRepository.recalcularValorTotal as jest.Mock).mockResolvedValue(true);
+
+      const res = await gastoService.deletarGasto("gasto-1", "user-1");
+
+      expect(res.message).toContain("sucesso");
+      expect(gastoRepository.deletarGasto).toHaveBeenCalledWith("gasto-1");
+      expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fatura-1");
+      expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fatura-2");
+    });
+  });
 });
