@@ -204,7 +204,7 @@ export class PrismaRecorrenciaRepository implements RecorrenciaRepositoryPort {
         where: { id },
         data: {
           pausado: true,
-          dataPausaInicio: data.dataPausaInicio ? new Date(data.dataPausaInicio) : new Date(),
+          dataPausaInicio: data.dataPausaInicio ? new Date(data.dataPausaInicio) : null,
           dataPausaFim: data.dataPausaFim ? new Date(data.dataPausaFim) : null,
           motivoPausa: data.motivoPausa ?? null,
         },
