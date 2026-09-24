@@ -789,6 +789,37 @@ class GastoService {
         }
 
         if (gasto.origemLancamento === "parcelado") {
+            if (data.competencia || data.pagarParcelaMesVigente) {
+                const targetComp = data.competencia
+                    || (data.dataPagamento ? new Date(data.dataPagamento).toISOString().substring(0, 7) : new Date().toISOString().substring(0, 7));
+                const lancamentosBase = Array.isArray((gasto as any).lancamentosBase)
+                    ? (gasto as any).lancamentosBase
+                    : await gastoRepository.listarLancamentosBasePorGastoId(id);
+
+                const parcela = lancamentosBase.find((lb: any) => {
+                    const compStr = lb.competencia instanceof Date ? lb.competencia.toISOString() : String(lb.competencia || "");
+                    const vencStr = lb.dataVencimentoParcela instanceof Date ? lb.dataVencimentoParcela.toISOString() : String(lb.dataVencimentoParcela || "");
+                    return compStr.startsWith(targetComp) || vencStr.startsWith(targetComp);
+                });
+
+                if (!parcela) {
+                    throw createHttpError(404, "Parcela da competencia informada nao encontrada.");
+                }
+
+                if (parcela.status === "pago") {
+                    throw createHttpError(400, "Parcela da competencia informada ja esta paga.");
+                }
+
+                const parcelaPaga = await gastoRepository.pagarLancamentoBase(parcela.id, data.dataPagamento ?? new Date());
+
+                const todasPagas = lancamentosBase.length > 0 && lancamentosBase.every((p: any) => p.id === parcela.id || p.status === "pago");
+                if (todasPagas) {
+                    await gastoRepository.pagarGasto(id, data.dataPagamento ?? new Date());
+                }
+
+                return parcelaPaga;
+            }
+
             const lancamentosBase = Array.isArray((gasto as any).lancamentosBase)
                 ? (gasto as any).lancamentosBase
                 : [];

@@ -65,6 +65,9 @@ describe("OpenAPI docs", () => {
     expect(response.body.paths["/ia/consultas/historico"]).toHaveProperty("delete");
     expect(response.body.components.schemas.CreateGastoRequest.required).toContain("dataVencimento");
     expect(response.body.components.schemas.CreateGastoRequest.properties.dataVencimento.description).toContain("obrigatoria");
+    expect(response.body.components.schemas.PagarRequest.properties).toHaveProperty("competencia");
+    expect(response.body.components.schemas.PagarRequest.properties).toHaveProperty("pagarParcelaMesVigente");
+    expect(response.body.paths["/pagarGastos/{id}/pagamento"].patch.description).toContain("parcelados");
     expect(response.body.tags).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "Insights" }),
