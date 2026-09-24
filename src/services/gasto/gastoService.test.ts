@@ -760,6 +760,126 @@ describe("GastoService", () => {
         statusCode: 403,
       });
     });
+
+    it("should pay the installment of the specified competencia when gasto is parcelado", async () => {
+      const gastoParcelado = {
+        id: "gasto-1",
+        responsavelId: "user-1",
+        status: "pendente",
+        origemLancamento: "parcelado",
+        lancamentosBase: [
+          { id: "parc-1", numeroParcela: 1, status: "pendente", competencia: "2026-09-01", dataVencimentoParcela: "2026-09-15" },
+          { id: "parc-2", numeroParcela: 2, status: "pendente", competencia: "2026-10-01", dataVencimentoParcela: "2026-10-15" },
+        ],
+      };
+      const paymentDate = new Date("2026-09-10T12:00:00.000Z");
+      const paidParcel = { id: "parc-1", status: "pago" };
+
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue(gastoParcelado);
+      (gastoRepository.pagarLancamentoBase as jest.Mock).mockResolvedValue(paidParcel);
+
+      const result = await gastoService.pagarGasto(
+        "gasto-1",
+        { dataPagamento: paymentDate, competencia: "2026-09" },
+        "user-1"
+      );
+
+      expect(result).toEqual(paidParcel);
+      expect(gastoRepository.pagarLancamentoBase).toHaveBeenCalledWith("parc-1", paymentDate);
+      expect(gastoRepository.pagarGasto).not.toHaveBeenCalled();
+    });
+
+    it("should pay the installment and parent gasto when the last pending installment is paid", async () => {
+      const gastoParcelado = {
+        id: "gasto-1",
+        responsavelId: "user-1",
+        status: "pendente",
+        origemLancamento: "parcelado",
+        lancamentosBase: [
+          { id: "parc-1", numeroParcela: 1, status: "pago", competencia: "2026-09-01", dataVencimentoParcela: "2026-09-15" },
+          { id: "parc-2", numeroParcela: 2, status: "pendente", competencia: "2026-10-01", dataVencimentoParcela: "2026-10-15" },
+        ],
+      };
+      const paymentDate = new Date("2026-10-10T12:00:00.000Z");
+      const paidParcel = { id: "parc-2", status: "pago" };
+
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue(gastoParcelado);
+      (gastoRepository.pagarLancamentoBase as jest.Mock).mockResolvedValue(paidParcel);
+      (gastoRepository.pagarGasto as jest.Mock).mockResolvedValue({ ...gastoParcelado, status: "pago" });
+
+      const result = await gastoService.pagarGasto(
+        "gasto-1",
+        { dataPagamento: paymentDate, competencia: "2026-10" },
+        "user-1"
+      );
+
+      expect(result).toEqual(paidParcel);
+      expect(gastoRepository.pagarLancamentoBase).toHaveBeenCalledWith("parc-2", paymentDate);
+      expect(gastoRepository.pagarGasto).toHaveBeenCalledWith("gasto-1", paymentDate);
+    });
+
+    it("should throw 400 when installment of the competencia is already paid", async () => {
+      const gastoParcelado = {
+        id: "gasto-1",
+        responsavelId: "user-1",
+        status: "pendente",
+        origemLancamento: "parcelado",
+        lancamentosBase: [
+          { id: "parc-1", numeroParcela: 1, status: "pago", competencia: "2026-09-01", dataVencimentoParcela: "2026-09-15" },
+        ],
+      };
+
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue(gastoParcelado);
+
+      await expect(
+        gastoService.pagarGasto("gasto-1", { competencia: "2026-09" }, "user-1")
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: "Parcela da competencia informada ja esta paga.",
+      });
+    });
+
+    it("should throw 404 when installment of the competencia is not found", async () => {
+      const gastoParcelado = {
+        id: "gasto-1",
+        responsavelId: "user-1",
+        status: "pendente",
+        origemLancamento: "parcelado",
+        lancamentosBase: [
+          { id: "parc-1", numeroParcela: 1, status: "pendente", competencia: "2026-09-01", dataVencimentoParcela: "2026-09-15" },
+        ],
+      };
+
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue(gastoParcelado);
+
+      await expect(
+        gastoService.pagarGasto("gasto-1", { competencia: "2026-12" }, "user-1")
+      ).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Parcela da competencia informada nao encontrada.",
+      });
+    });
+
+    it("should throw 400 when paying parcelado without competencia and not all installments are paid", async () => {
+      const gastoParcelado = {
+        id: "gasto-1",
+        responsavelId: "user-1",
+        status: "pendente",
+        origemLancamento: "parcelado",
+        lancamentosBase: [
+          { id: "parc-1", numeroParcela: 1, status: "pendente" },
+        ],
+      };
+
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue(gastoParcelado);
+
+      await expect(
+        gastoService.pagarGasto("gasto-1", {}, "user-1")
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: "Gasto parcelado so pode ser quitado quando todas as parcelas estiverem pagas.",
+      });
+    });
   });
 
   describe("reabrirGasto", () => {

@@ -1,4 +1,4 @@
-﻿# NossoSaldo API
+# NossoSaldo API
 
 API REST do NossoSaldo, responsavel por autenticacao, usuarios, categorias, contas conjuntas, gastos, cartoes de credito, faturas, relatorios e insights.
 
@@ -67,7 +67,7 @@ Exemplo de bancos por ambiente:
 - `competencia` representa o primeiro dia do mes do vencimento.
 - Exemplo: `dataVencimento = 2026-08-17` deve usar `competencia = 2026-08-01`.
 - Gastos recorrentes podem gerar lancamentos futuros ate `dataFimRecorrencia`.
-- Gastos parcelados geram parcelas em `LancamentoBase`.
+- Gastos parcelados geram parcelas em `LancamentoBase`. A quitacao de uma parcela individual pode ocorrer via `PATCH /lancamentosBase/:id/pagamento` ou diretamente via `PATCH /pagarGastos/:id/pagamento` com `competencia` (YYYY-MM) ou `pagarParcelaMesVigente: true`, quitando a parcela do mes vigente. Quando todas as parcelas sao quitadas, o gasto pai e automaticamente marcado como `pago`.
 - Gastos com cartao sao vinculados a fatura pelo vencimento.
 
 ## Cobertura

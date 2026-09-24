@@ -307,6 +307,15 @@ export const openApiSpec = {
         type: "object",
         properties: {
           dataPagamento: { type: "string", format: "date-time", nullable: true },
+          competencia: {
+            type: "string",
+            example: "2026-09",
+            description: "Competencia (YYYY-MM) da parcela a ser quitada em gastos parcelados",
+          },
+          pagarParcelaMesVigente: {
+            type: "boolean",
+            description: "Quando true, quita a parcela do mes vigente correspondente ao gasto parcelado",
+          },
         },
       },
       CartaoCredito: {
@@ -725,6 +734,7 @@ export const openApiSpec = {
       patch: {
         tags: ["Gastos"],
         summary: "Marca um gasto como pago",
+        description: "Marca um gasto como pago. Para lancamentos parcelados, suporta receber `competencia` (YYYY-MM) ou `pagarParcelaMesVigente: true` para quitar diretamente a parcela filha do mes vigente sem necessidade de abrir os registros filhos.",
         security: [{ AccessTokenAuth: [] }],
         parameters: [
           { in: "path", name: "id", required: true, schema: { type: "string", format: "uuid" } },
