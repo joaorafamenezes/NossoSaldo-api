@@ -4,6 +4,7 @@ import { usuarioRepository } from "../../repositories/usuario/usuarioRepository"
 import { contaConjuntaRepository } from "../../repositories/contaConjunta/contaConjuntaRepository";
 import { cartaoCreditoRepository } from "../../repositories/cartaoCredito/cartaoCreditoRepository";
 import { faturaCartaoRepository } from "../../repositories/faturaCartao/faturaCartaoRepository";
+import { recorrenciaRepository } from "../../repositories/recorrencia/recorrenciaRepository";
 
 jest.mock("../../repositories/gasto/gastoRepository", () => ({
   gastoRepository: {
@@ -982,6 +983,36 @@ describe("GastoService", () => {
       expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fatura-principal");
       expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fatura-1");
       expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fatura-2");
+    });
+
+    it("should delete virtual recurring expense and cancel the recurrence rule and physical series records", async () => {
+      const virtualId = "virtual-11111111-2222-3333-4444-555555555555-2026-09";
+      const recId = "11111111-2222-3333-4444-555555555555";
+
+      (recorrenciaRepository.buscarRecorrenciaPorId as jest.Mock).mockResolvedValue({
+        id: recId,
+        responsavelId: "user-1",
+      });
+      (recorrenciaRepository.deletarRecorrencia as jest.Mock).mockResolvedValue(true);
+      (gastoRepository.listarGastosDaSerieRecorrente as jest.Mock).mockResolvedValue([
+        { id: "gasto-serie-1", faturaCartaoId: "fatura-rec" },
+      ]);
+      (gastoRepository.deletarGasto as jest.Mock).mockResolvedValue(true);
+
+      const res = await gastoService.deletarGasto(virtualId, "user-1");
+
+      expect(res).toEqual({ message: "Gasto recorrente excluido com sucesso." });
+      expect(recorrenciaRepository.deletarRecorrencia).toHaveBeenCalledWith(recId);
+      expect(gastoRepository.deletarGasto).toHaveBeenCalledWith("gasto-serie-1");
+      expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fatura-rec");
+    });
+
+    it("should return success when deleting virtual recurring expense if recurrence is already gone", async () => {
+      const virtualId = "virtual-99999999-8888-7777-6666-555555555555-2026-09";
+      (recorrenciaRepository.buscarRecorrenciaPorId as jest.Mock).mockResolvedValue(null);
+
+      const res = await gastoService.deletarGasto(virtualId, "user-1");
+      expect(res).toEqual({ message: "Gasto recorrente excluido com sucesso." });
     });
   });
 

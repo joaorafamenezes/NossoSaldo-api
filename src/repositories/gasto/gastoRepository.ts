@@ -384,7 +384,10 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
         where: {
           deletedAt: null,
           origemLancamento: "recorrente",
-          recorrenciaPaiId,
+          OR: [
+            { recorrenciaPaiId },
+            { recorrenciaId: recorrenciaPaiId },
+          ],
         },
         orderBy: { competencia: "asc" },
       });
