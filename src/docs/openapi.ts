@@ -732,10 +732,11 @@ export const openApiSpec = {
       },
       delete: {
         tags: ["Gastos"],
-        summary: "Exclui um gasto pelo ID",
+        summary: "Exclui um gasto ou receita pelo ID",
+        description: "Remove um gasto ou receita do usuario autenticado. Suporta tanto IDs persistidos (UUID) quanto IDs virtuais de projecoes recorrentes (formato `virtual-{recorrenciaId}-{YYYY-MM}`). No frontend, esta operacao e precedida por confirmacao interativa do usuario antes do disparo (CT001).",
         security: [{ AccessTokenAuth: [] }],
         parameters: [
-          { in: "path", name: "id", required: true, schema: { type: "string", format: "uuid" } },
+          { in: "path", name: "id", required: true, schema: { type: "string" } },
         ],
         responses: {
           "200": { description: "Gasto excluido com sucesso" },

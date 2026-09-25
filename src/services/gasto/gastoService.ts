@@ -774,6 +774,62 @@ class GastoService {
     }
 
     async pagarGasto(id: string, data: iPagarGasto, userId: string) {
+        if (id.startsWith("virtual-")) {
+            const parts = id.split("-");
+            const recorrenciaId = parts.slice(1, 6).join("-");
+            const anoMes = parts.slice(6).join("-");
+            const recorrencia = await recorrenciaRepository.buscarRecorrenciaPorId(recorrenciaId);
+
+            if (!recorrencia) {
+                throw createHttpError(404, "Recorrencia nao encontrada.");
+            }
+
+            if (recorrencia.responsavelId !== userId) {
+                throw createHttpError(403, "Usuario nao autorizado a pagar este gasto.");
+            }
+
+            const [ano, mes] = anoMes.split("-").map(Number);
+            const dataVencimento = projecaoRecorrenciaService.calcularDataVencimentoNoMes(
+                recorrencia.diaVencimento,
+                new Date(Date.UTC(ano, mes - 1, 1))
+            );
+
+            let faturaCartaoId: string | null = null;
+            if (recorrencia.cartaoCreditoId) {
+                const cartao = await cartaoCreditoRepository.buscarCartaoCreditoPorId(recorrencia.cartaoCreditoId);
+                if (cartao) {
+                    const fatura = await faturaCartaoRepository.buscarOuCriarFaturaPorCompetencia(cartao, dataVencimento);
+                    faturaCartaoId = fatura.id;
+                }
+            }
+
+            const novoGasto = await gastoRepository.criarGastoUsuarioLogado({
+                descricao: recorrencia.descricao,
+                tipo: recorrencia.tipo,
+                status: "pago",
+                origemLancamento: "recorrente",
+                numeroParcelas: 1,
+                naoCompartilhar: Boolean(recorrencia.naoCompartilhar),
+                valor: Number(recorrencia.valor),
+                competencia: new Date(Date.UTC(ano, mes - 1, 1)),
+                dataVencimento,
+                dataPagamento: data.dataPagamento ?? new Date(),
+                observacao: recorrencia.observacao ?? undefined,
+                categoriaId: recorrencia.categoriaId,
+                responsavelId: recorrencia.responsavelId,
+                cartaoCreditoId: recorrencia.cartaoCreditoId ?? undefined,
+                faturaCartaoId: faturaCartaoId ?? undefined,
+                recorrenciaId: recorrencia.id,
+                recorrenciaPaiId: recorrencia.id,
+            });
+
+            if (faturaCartaoId) {
+                await faturaCartaoRepository.recalcularValorTotal(faturaCartaoId);
+            }
+
+            return novoGasto;
+        }
+
         const gasto = await gastoRepository.buscarGastoPorId(id);
 
         if (!gasto) {
@@ -893,6 +949,36 @@ class GastoService {
     }
 
     async deletarGasto(id: string, userId: string) {
+        if (id.startsWith("virtual-")) {
+            const parts = id.split("-");
+            const recorrenciaId = parts.slice(1, 6).join("-");
+            const recorrencia = await recorrenciaRepository.buscarRecorrenciaPorId(recorrenciaId);
+
+            if (!recorrencia) {
+                return { message: "Gasto recorrente excluido com sucesso." };
+            }
+
+            if (recorrencia.responsavelId !== userId) {
+                throw createHttpError(403, "Usuario nao autorizado a excluir este gasto.");
+            }
+
+            await recorrenciaRepository.deletarRecorrencia(recorrenciaId);
+
+            const registrosSerie = await gastoRepository.listarGastosDaSerieRecorrente(recorrenciaId);
+            const faturasParaRecalcular = new Set<string>();
+            for (const r of registrosSerie) {
+                if ((r as any).faturaCartaoId) {
+                    faturasParaRecalcular.add((r as any).faturaCartaoId);
+                }
+                await gastoRepository.deletarGasto(r.id);
+            }
+            for (const faturaId of faturasParaRecalcular) {
+                await faturaCartaoRepository.recalcularValorTotal(faturaId);
+            }
+
+            return { message: "Gasto recorrente excluido com sucesso." };
+        }
+
         const gasto = await gastoRepository.buscarGastoPorId(id);
 
         if (!gasto) {
@@ -920,6 +1006,24 @@ class GastoService {
         }
 
         await gastoRepository.deletarGasto(id);
+
+        const recorrenciaId = (gasto as any).recorrenciaId || (gasto as any).recorrenciaPaiId;
+        if (gasto.origemLancamento === "recorrente" && recorrenciaId) {
+            try {
+                await recorrenciaRepository.deletarRecorrencia(recorrenciaId);
+                const registrosSerie = await gastoRepository.listarGastosDaSerieRecorrente(recorrenciaId);
+                for (const r of registrosSerie) {
+                    if (r.id !== id) {
+                        if ((r as any).faturaCartaoId) {
+                            faturasParaRecalcular.add((r as any).faturaCartaoId);
+                        }
+                        await gastoRepository.deletarGasto(r.id);
+                    }
+                }
+            } catch {
+                // Silencia se a regra ja foi excluida
+            }
+        }
 
         for (const faturaId of faturasParaRecalcular) {
             await faturaCartaoRepository.recalcularValorTotal(faturaId);

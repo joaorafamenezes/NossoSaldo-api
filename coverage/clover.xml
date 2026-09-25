@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1790300678612" clover="3.2.0">
-  <project timestamp="1790300678612" name="All files">
+<coverage generated="1790305807219" clover="3.2.0">
+  <project timestamp="1790305807219" name="All files">
     <metrics statements="1702" coveredstatements="1499" conditionals="1280" coveredconditionals="956" methods="231" coveredmethods="202" elements="3213" coveredelements="2657" complexity="0" loc="1702" ncloc="1702" packages="35" files="46" classes="46"/>
     <package name="adapters.outbound.openai">
       <metrics statements="50" coveredstatements="49" conditionals="51" coveredconditionals="47" methods="12" coveredmethods="9"/>

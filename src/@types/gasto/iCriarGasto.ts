@@ -14,6 +14,7 @@ export default interface iCriarGasto {
     responsavelId: string;
     cartaoCreditoId?: string | null;
     faturaCartaoId?: string | null;
+    recorrenciaId?: string | null;
     recorrenciaPaiId?: string | null;
     dataInicioRecorrencia?: Date | null;
     dataFimRecorrencia?: Date | null;
