@@ -883,6 +883,23 @@ export const openApiSpec = {
         },
       },
     },
+    "/faturasCartao/{id}/extrato": {
+      get: {
+        tags: ["Faturas"],
+        summary: "Obtém o extrato detalhado de itens e parcelas vinculadas a uma fatura de cartão",
+        security: [{ AccessTokenAuth: [] }],
+        parameters: [
+          { in: "path", name: "id", required: true, schema: { type: "string", format: "uuid" } },
+        ],
+        responses: {
+          "200": {
+            description: "Extrato da fatura com itens consolidados por responsável, categoria e status",
+          },
+          "401": { description: "Nao autorizado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "404": { description: "Fatura nao encontrada", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
     "/faturasCartao/{id}/pagamento": {
       patch: {
         tags: ["Faturas"],

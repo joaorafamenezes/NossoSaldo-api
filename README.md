@@ -69,6 +69,7 @@ Exemplo de bancos por ambiente:
 - Gastos recorrentes podem gerar lancamentos futuros ate `dataFimRecorrencia`.
 - Gastos parcelados geram parcelas em `LancamentoBase`. A quitacao de uma parcela individual pode ocorrer via `PATCH /lancamentosBase/:id/pagamento` ou diretamente via `PATCH /pagarGastos/:id/pagamento` com `competencia` (YYYY-MM) ou `pagarParcelaMesVigente: true`, quitando a parcela do mes vigente. Quando todas as parcelas sao quitadas, o gasto pai e automaticamente marcado como `pago`.
 - Gastos com cartao sao vinculados a fatura pelo vencimento.
+- `GET /faturasCartao/:id/extrato`: retorna os itens detalhados (gastos e parcelas filhas) vinculados a fatura, com valores efetivos de parcelas, responsaveis e status, permitindo ao frontend auditar a composicao integral e efetuar a conciliacao sem divergencias.
 - `observacao`: campo textual opcional (`Gasto.observacao`) para detalhar particularidades do lancamento. Em gastos parcelados, e replicado nas parcelas filhas (`LancamentoBase.observacao`) e pode ser atualizado via criacao/edicao do lancamento.
 - **Exclusao de lancamentos (`DELETE /gastos/:id`)**:
   - Exclui gastos unicos, parcelados e recorrentes com validacao de permissao e recalculo automatico de faturas de cartao vinculadas.
