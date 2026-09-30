@@ -157,13 +157,14 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
             responsavelId: gasto.responsavelId,
             cartaoCreditoId: gasto.cartaoCreditoId || null,
             faturaCartaoId: gasto.faturaCartaoId || null,
+            recorrenciaId: gasto.recorrenciaId || null,
             recorrenciaPaiId: gasto.recorrenciaPaiId || null,
             dataInicioRecorrencia: gasto.dataInicioRecorrencia ?? null,
             dataFimRecorrencia: gasto.dataFimRecorrencia ?? null,
           },
         });
 
-        const gastoFinal = gasto.origemLancamento === "recorrente" && !gasto.recorrenciaPaiId
+        const gastoFinal = gasto.origemLancamento === "recorrente" && !gasto.recorrenciaPaiId && !gasto.recorrenciaId
           ? await transaction.gasto.update({
               where: { id: gastoCriado.id },
               data: {
