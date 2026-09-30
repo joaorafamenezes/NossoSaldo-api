@@ -820,7 +820,6 @@ class GastoService {
                 cartaoCreditoId: recorrencia.cartaoCreditoId ?? undefined,
                 faturaCartaoId: faturaCartaoId ?? undefined,
                 recorrenciaId: recorrencia.id,
-                recorrenciaPaiId: recorrencia.id,
             });
 
             if (faturaCartaoId) {

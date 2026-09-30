@@ -69,6 +69,7 @@ jest.mock("../../repositories/recorrencia/recorrenciaRepository", () => ({
 jest.mock("../recorrencia/projecaoRecorrenciaService", () => ({
   projecaoRecorrenciaService: {
     gerarProjecoesJIT: jest.fn((gastosFisicos) => gastosFisicos),
+    calcularDataVencimentoNoMes: jest.fn((dia, comp) => new Date(comp.getFullYear(), comp.getMonth(), dia)),
   },
 }));
 
@@ -879,6 +880,102 @@ describe("GastoService", () => {
       ).rejects.toMatchObject({
         statusCode: 400,
         message: "Gasto parcelado so pode ser quitado quando todas as parcelas estiverem pagas.",
+      });
+    });
+
+    it("should successfully pay a virtual recurring expense and persist physical paid record without recorrenciaPaiId", async () => {
+      const virtualId = "virtual-11111111-2222-3333-4444-555555555555-2026-10";
+      const recId = "11111111-2222-3333-4444-555555555555";
+      const recMock = {
+        id: recId,
+        descricao: "Internet Fibra",
+        tipo: "despesa",
+        valor: 119.9,
+        diaVencimento: 10,
+        naoCompartilhar: false,
+        categoriaId: "cat-1",
+        responsavelId: "user-1",
+        cartaoCreditoId: null,
+      };
+
+      (recorrenciaRepository.buscarRecorrenciaPorId as jest.Mock).mockResolvedValue(recMock);
+      (gastoRepository.criarGastoUsuarioLogado as jest.Mock).mockResolvedValue({
+        id: "new-gasto-1",
+        descricao: recMock.descricao,
+        status: "pago",
+        recorrenciaId: recId,
+      });
+
+      const res = await gastoService.pagarGasto(virtualId, { dataPagamento: new Date("2026-10-10T12:00:00Z") }, "user-1");
+
+      expect(res).toEqual(expect.objectContaining({ id: "new-gasto-1", status: "pago" }));
+      expect(gastoRepository.criarGastoUsuarioLogado).toHaveBeenCalledWith(
+        expect.objectContaining({
+          descricao: "Internet Fibra",
+          status: "pago",
+          origemLancamento: "recorrente",
+          recorrenciaId: recId,
+        })
+      );
+      // Ensure recorrenciaPaiId is NOT passed to avoid foreign key violation
+      const createPayload = (gastoRepository.criarGastoUsuarioLogado as jest.Mock).mock.calls[0][0];
+      expect(createPayload.recorrenciaPaiId).toBeUndefined();
+    });
+
+    it("should link virtual recurring expense to card invoice and recalculate invoice when card is present", async () => {
+      const virtualId = "virtual-22222222-3333-4444-5555-666666666666-2026-10";
+      const recId = "22222222-3333-4444-5555-666666666666";
+      const recMock = {
+        id: recId,
+        descricao: "ChatGPT Plus",
+        tipo: "despesa",
+        valor: 107.54,
+        diaVencimento: 15,
+        naoCompartilhar: false,
+        categoriaId: "cat-servicos",
+        responsavelId: "user-1",
+        cartaoCreditoId: "card-nubank",
+      };
+
+      (recorrenciaRepository.buscarRecorrenciaPorId as jest.Mock).mockResolvedValue(recMock);
+      (cartaoCreditoRepository.buscarCartaoCreditoPorId as jest.Mock).mockResolvedValue({ id: "card-nubank", usuarioId: "user-1" });
+      (faturaCartaoRepository.buscarOuCriarFaturaPorCompetencia as jest.Mock).mockResolvedValue({ id: "fatura-oct-nubank" });
+      (gastoRepository.criarGastoUsuarioLogado as jest.Mock).mockResolvedValue({
+        id: "new-gasto-chatgpt",
+        status: "pago",
+        faturaCartaoId: "fatura-oct-nubank",
+      });
+
+      await gastoService.pagarGasto(virtualId, { dataPagamento: new Date() }, "user-1");
+
+      expect(faturaCartaoRepository.buscarOuCriarFaturaPorCompetencia).toHaveBeenCalled();
+      expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fatura-oct-nubank");
+      expect(gastoRepository.criarGastoUsuarioLogado).toHaveBeenCalledWith(
+        expect.objectContaining({
+          faturaCartaoId: "fatura-oct-nubank",
+          recorrenciaId: recId,
+        })
+      );
+    });
+
+    it("should throw 403 when virtual recurrence belongs to another user", async () => {
+      const virtualId = "virtual-11111111-2222-3333-4444-555555555555-2026-10";
+      (recorrenciaRepository.buscarRecorrenciaPorId as jest.Mock).mockResolvedValue({
+        id: "11111111-2222-3333-4444-555555555555",
+        responsavelId: "other-user",
+      });
+
+      await expect(gastoService.pagarGasto(virtualId, {}, "user-1")).rejects.toMatchObject({
+        statusCode: 403,
+      });
+    });
+
+    it("should throw 404 when virtual recurrence is not found in database", async () => {
+      const virtualId = "virtual-00000000-0000-0000-0000-000000000000-2026-10";
+      (recorrenciaRepository.buscarRecorrenciaPorId as jest.Mock).mockResolvedValue(null);
+
+      await expect(gastoService.pagarGasto(virtualId, {}, "user-1")).rejects.toMatchObject({
+        statusCode: 404,
       });
     });
   });
