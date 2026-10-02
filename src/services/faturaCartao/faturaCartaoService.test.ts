@@ -1,4 +1,4 @@
-import { faturaCartaoService } from "./faturaCartaoService";
+import { faturaCartaoService, FaturaCartaoService } from "./faturaCartaoService";
 import { faturaCartaoRepository } from "../../repositories/faturaCartao/faturaCartaoRepository";
 import { usuarioRepository } from "../../repositories/usuario/usuarioRepository";
 
@@ -134,6 +134,37 @@ describe("FaturaCartaoService", () => {
       await expect(faturaCartaoService.buscarExtratoFatura("fat-1", "user-1")).rejects.toHaveProperty(
         "message",
         "Fatura nao encontrada ou usuario sem permissao.",
+      );
+    });
+
+    it("should synchronize card recurrences when listing invoices", async () => {
+      const mockGastoRecorrente = {
+        sincronizarRecorrenciasCartoes: jest.fn().mockResolvedValue(undefined),
+        gerarGastosRecorrentesDoMes: jest.fn().mockResolvedValue(undefined),
+      };
+      const customService = new FaturaCartaoService(usuarioRepository, faturaCartaoRepository, mockGastoRecorrente);
+      (faturaCartaoRepository.listarFaturasPorUsuario as jest.Mock).mockResolvedValue([fatura]);
+
+      await customService.listarFaturasPorUsuario("user-1", "card-1");
+      expect(mockGastoRecorrente.sincronizarRecorrenciasCartoes).toHaveBeenCalledWith("user-1");
+    });
+
+    it("should generate recurring expenses for invoice competence when fetching statement", async () => {
+      const mockGastoRecorrente = {
+        sincronizarRecorrenciasCartoes: jest.fn().mockResolvedValue(undefined),
+        gerarGastosRecorrentesDoMes: jest.fn().mockResolvedValue(undefined),
+      };
+      const customService = new FaturaCartaoService(usuarioRepository, faturaCartaoRepository, mockGastoRecorrente);
+      (faturaCartaoRepository.buscarFaturaPorIdParaUsuario as jest.Mock).mockResolvedValue({
+        id: "fat-1",
+        competencia: "2026-12",
+      });
+      (faturaCartaoRepository.buscarExtratoFatura as jest.Mock).mockResolvedValue({ id: "fat-1", itens: [] });
+
+      await customService.buscarExtratoFatura("fat-1", "user-1");
+      expect(mockGastoRecorrente.gerarGastosRecorrentesDoMes).toHaveBeenCalledWith(
+        "user-1",
+        new Date(Date.UTC(2026, 11, 1))
       );
     });
   });

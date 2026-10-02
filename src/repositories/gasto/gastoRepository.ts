@@ -369,9 +369,11 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
     try {
       return await this.prisma.gasto.findFirst({
         where: {
-          recorrenciaPaiId,
-          deletedAt: null,
           competencia: { gte: inicioMes, lt: fimMes },
+          OR: [
+            { recorrenciaPaiId },
+            { recorrenciaId: recorrenciaPaiId },
+          ],
         },
       });
     } catch (error) {

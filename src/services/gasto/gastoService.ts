@@ -284,7 +284,7 @@ class GastoService {
         return Array.from(new Set([usuarioId, ...usuariosCompartilhadosIds]));
     }
 
-    async gerarGastosRecorrentesDoMes(usuarioId: string, referencia = new Date()) {
+    async gerarGastosRecorrentesDoMes(usuarioId: string, referencia = new Date(), apenasCartao = false) {
         const inicioMes = this.getInicioMes(referencia);
         const fimMes = this.getFimMes(referencia);
         const responsaveisIds = await this.listarResponsaveisAcessiveis(usuarioId);
@@ -296,6 +296,10 @@ class GastoService {
         const faturasParaRecalcular = new Set<string>();
 
         for (const modelo of modelos) {
+            if (apenasCartao && !modelo.cartaoCreditoId) {
+                continue;
+            }
+
             const dataInicio = modelo.dataInicioRecorrencia ?? modelo.dataVencimento;
 
             if (!dataInicio || !modelo.dataVencimento) {
@@ -349,7 +353,20 @@ class GastoService {
                 }
             }
 
-            await gastoRepository.criarGastoUsuarioLogado(novoGasto);
+            try {
+                await gastoRepository.criarGastoUsuarioLogado(novoGasto);
+            } catch (err: any) {
+                if (
+                    err?.status === 409 ||
+                    err?.statusCode === 409 ||
+                    err?.code === "P2002" ||
+                    err?.cause?.code === "P2002" ||
+                    err?.message?.includes("Registro ja existe")
+                ) {
+                    continue;
+                }
+                throw err;
+            }
         }
 
         for (const faturaId of faturasParaRecalcular) {
@@ -357,12 +374,51 @@ class GastoService {
         }
     }
 
-    async gerarGastosRecorrentesPorPeriodo(usuarioId: string, de: Date, ate: Date) {
+    async gerarGastosRecorrentesPorPeriodo(usuarioId: string, de: Date, ate: Date, apenasCartao = false) {
         const meses = this.getMesesNoPeriodo(de, ate);
 
         for (const mes of meses) {
-            await this.gerarGastosRecorrentesDoMes(usuarioId, mes);
+            await this.gerarGastosRecorrentesDoMes(usuarioId, mes, apenasCartao);
         }
+    }
+
+    async sincronizarRecorrenciasCartoes(usuarioId: string) {
+        const responsaveisIds = await this.listarResponsaveisAcessiveis(usuarioId);
+        if (responsaveisIds.length === 0) return;
+
+        const agora = new Date();
+        const inicioPadrao = this.getInicioMes(new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() - 1, 1)));
+        const fimPadrao = this.getInicioMes(new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() + 6, 1)));
+
+        const modelos = await gastoRepository.listarModelosRecorrentesAtivosPorResponsaveis(
+            responsaveisIds,
+            inicioPadrao,
+            new Date(Date.UTC(agora.getUTCFullYear() + 2, 11, 31)),
+        );
+
+        const modelosCartao = modelos.filter((m) => m.cartaoCreditoId);
+        if (modelosCartao.length === 0) {
+            return;
+        }
+
+        let menorInicio = inicioPadrao;
+        let maiorFim = fimPadrao;
+
+        for (const m of modelosCartao) {
+            const dataIni = m.dataInicioRecorrencia ?? m.dataVencimento;
+            if (dataIni) {
+                const iniMes = this.getInicioMes(new Date(dataIni));
+                const proximoCiclo = new Date(Date.UTC(iniMes.getUTCFullYear(), iniMes.getUTCMonth() + 6, 1));
+                if (proximoCiclo > maiorFim) {
+                    maiorFim = proximoCiclo;
+                }
+                if (iniMes < menorInicio) {
+                    menorInicio = iniMes;
+                }
+            }
+        }
+
+        await this.gerarGastosRecorrentesPorPeriodo(usuarioId, menorInicio, maiorFim, true);
     }
 
     private async validarCartaoCreditoPermitido(cartaoCreditoId: string | null | undefined, usuarioId: string) {
@@ -460,6 +516,8 @@ class GastoService {
                 gastoCriado as any,
                 cartao,
             );
+        } else if (data.origemLancamento === "recorrente" && data.cartaoCreditoId) {
+            await this.sincronizarRecorrenciasCartoes(responsavelId);
         }
 
         return gastoCriado;
