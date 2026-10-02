@@ -30,7 +30,7 @@ export class PrismaCategoriaRepository implements CategoriaRepositoryPort {
   async buscarTodasCategorias() {
     try {
       const categorias = await this.prisma.categoria.findMany({
-        orderBy: { createdAt: "desc" },
+        orderBy: { descricao: "asc" },
       });
 
       return categorias.map((c) => ({

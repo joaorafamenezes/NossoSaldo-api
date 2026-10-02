@@ -4,11 +4,18 @@ import { faturaCartaoRepository } from "../../repositories/faturaCartao/faturaCa
 import { usuarioRepository } from "../../repositories/usuario/usuarioRepository";
 import { FaturaCartaoRepositoryPort } from "../../ports/outbound/faturaCartaoRepositoryPort";
 import { UsuarioRepositoryPort } from "../../ports/outbound/usuarioRepositoryPort";
+import { gastoService } from "../gasto/gastoService";
+
+export interface GastoRecorrenteServicePort {
+  sincronizarRecorrenciasCartoes(usuarioId: string): Promise<void>;
+  gerarGastosRecorrentesDoMes(usuarioId: string, referencia?: Date): Promise<void>;
+}
 
 export class FaturaCartaoService {
   constructor(
     private readonly usuarioRepository: UsuarioRepositoryPort,
     private readonly faturaCartaoRepository: FaturaCartaoRepositoryPort,
+    private readonly gastoRecorrenteService?: GastoRecorrenteServicePort,
   ) {}
 
   async listarFaturasPorUsuario(usuarioId: string, cartaoCreditoId?: string) {
@@ -18,6 +25,14 @@ export class FaturaCartaoService {
       throw createHttpError(404, "Usuario nao encontrado.");
     }
 
+    if (this.gastoRecorrenteService?.sincronizarRecorrenciasCartoes) {
+      try {
+        await this.gastoRecorrenteService.sincronizarRecorrenciasCartoes(usuarioId);
+      } catch (err) {
+        console.error("Aviso: falha na sincronizacao automatica de faturas:", err);
+      }
+    }
+
     return await this.faturaCartaoRepository.listarFaturasPorUsuario(usuarioId, cartaoCreditoId);
   }
 
@@ -25,6 +40,21 @@ export class FaturaCartaoService {
     const usuario = await this.usuarioRepository.listarUsuarioPorId(usuarioId);
     if (!usuario) {
       throw createHttpError(404, "Usuario nao encontrado.");
+    }
+
+    try {
+      const fatura = await this.faturaCartaoRepository.buscarFaturaPorIdParaUsuario(faturaId, usuarioId);
+      if (fatura?.competencia && this.gastoRecorrenteService?.gerarGastosRecorrentesDoMes) {
+        const [ano, mes] = fatura.competencia.split("-").map(Number);
+        if (ano && mes) {
+          await this.gastoRecorrenteService.gerarGastosRecorrentesDoMes(
+            usuarioId,
+            new Date(Date.UTC(ano, mes - 1, 1))
+          );
+        }
+      }
+    } catch {
+      // Ignora erro de pré-busca para prosseguir para buscarExtratoFatura
     }
 
     const extrato = await this.faturaCartaoRepository.buscarExtratoFatura(faturaId, usuarioId);
@@ -76,4 +106,4 @@ export class FaturaCartaoService {
   }
 }
 
-export const faturaCartaoService = new FaturaCartaoService(usuarioRepository, faturaCartaoRepository);
+export const faturaCartaoService = new FaturaCartaoService(usuarioRepository, faturaCartaoRepository, gastoService);
