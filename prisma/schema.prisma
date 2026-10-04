@@ -59,6 +59,7 @@ model Usuario {
   cartoesCredito          CartaoCredito[]
   iaConfiguracao           IaConfiguracao?
   iaConversas              IaConversa[]
+  releaseViews            UsuarioReleaseView[]
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 }
@@ -284,4 +285,16 @@ model PasswordResetToken {
 
   @@index([usuarioId])
   @@index([expiresAt])
+}
+
+model UsuarioReleaseView {
+  id            String   @id @default(uuid())
+  usuarioId     String
+  versao        String
+  visualizadoEm DateTime @default(now())
+
+  usuario       Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, versao])
+  @@index([usuarioId])
 }
