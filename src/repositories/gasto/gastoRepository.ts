@@ -111,7 +111,7 @@ async function refreshLancamentosBase(transaction: Prisma.TransactionClient, gas
         status: gasto.status,
         competencia: dataParcela,
         observacao: gasto.observacao ?? null,
-        faturaCartaoId: registroAtual?.faturaCartaoId ?? null,
+        faturaCartaoId: gasto.cartaoCreditoId ? (registroAtual?.faturaCartaoId ?? null) : null,
       };
     }),
   });
@@ -544,7 +544,7 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
     }
   }
 
-  async vincularLancamentoBaseAFatura(lancamentoBaseId: string, faturaCartaoId: string) {
+  async vincularLancamentoBaseAFatura(lancamentoBaseId: string, faturaCartaoId: string | null) {
     try {
       await this.prisma.lancamentoBase.update({
         where: { id: lancamentoBaseId },
@@ -552,6 +552,17 @@ export class PrismaGastoRepository implements GastoRepositoryPort {
       });
     } catch (error) {
       throw createRepositoryError(error, "Nao foi possivel vincular a parcela a fatura do cartao.");
+    }
+  }
+
+  async desvincularFaturasDeTodasParcelas(gastoId: string) {
+    try {
+      await this.prisma.lancamentoBase.updateMany({
+        where: { gastoId },
+        data: { faturaCartaoId: null },
+      });
+    } catch (error) {
+      throw createRepositoryError(error, "Nao foi possivel desvincular as faturas das parcelas.");
     }
   }
 

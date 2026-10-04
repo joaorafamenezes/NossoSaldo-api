@@ -60,6 +60,18 @@ const updateGastoSchema = joi.object({
     targetCompetencia: joi.alternatives().try(joi.string(), joi.date()).allow(null).messages({
         "alternatives.types": "A competencia alvo deve ser um texto ou data valida.",
     }),
+    atualizarTodasParcelas: joi.boolean().allow(null).messages({
+        "boolean.base": "O campo atualizarTodasParcelas deve ser booleano.",
+    }),
+    parcelaId: joi.string().uuid().allow(null, "").messages({
+        "string.base": "O ID da parcela deve ser um texto.",
+        "string.uuid": "O ID da parcela deve ser um UUID valido.",
+    }),
+    numeroParcela: joi.number().integer().min(1).allow(null).messages({
+        "number.base": "O numero da parcela deve ser um numero.",
+        "number.integer": "O numero da parcela deve ser um inteiro.",
+        "number.min": "O numero da parcela deve ser pelo menos 1.",
+    }),
 })
     .min(1)
     .messages({

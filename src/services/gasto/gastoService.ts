@@ -803,7 +803,121 @@ class GastoService {
             return gastoAtualizado;
         }
 
-        // Caso 4: Transicoes Unico <-> Parcelado ou Atualizacao Regular
+        // Caso 4: Atualizacao de Gasto Parcelado (mantendo como parcelado)
+        if (gasto.origemLancamento === "parcelado" && novaOrigem === "parcelado") {
+            const parcelasExistentes = await gastoRepository.listarLancamentosBasePorGastoId(id);
+            for (const p of parcelasExistentes) {
+                if (p.faturaCartaoId) {
+                    faturasParaRecalcular.add(p.faturaCartaoId);
+                }
+            }
+
+            const atualizarTodas = data.atualizarTodasParcelas !== undefined
+                ? data.atualizarTodasParcelas
+                : (data.escopoEdicao ? data.escopoEdicao !== "THIS_ONLY" : true);
+
+            if (!atualizarTodas) {
+                // CT001: Usuário escolheu NÃO atualizar as demais parcelas.
+                // Atualiza somente a parcela selecionada para a nova forma de pagamento, mantendo as demais no cartão de crédito.
+                let targetParcela: any = null;
+                if (data.parcelaId) {
+                    targetParcela = parcelasExistentes.find((p: any) => p.id === data.parcelaId);
+                } else if (data.numeroParcela) {
+                    targetParcela = parcelasExistentes.find((p: any) => p.numeroParcela === data.numeroParcela);
+                } else if (data.targetCompetencia) {
+                    const compStr = typeof data.targetCompetencia === "string"
+                        ? data.targetCompetencia.substring(0, 7)
+                        : this.getMesKey(new Date(data.targetCompetencia));
+                    targetParcela = parcelasExistentes.find((p: any) => {
+                        const pComp = p.competencia ? this.getMesKey(new Date(p.competencia)) : "";
+                        const pVenc = p.dataVencimentoParcela ? this.getMesKey(new Date(p.dataVencimentoParcela)) : "";
+                        return pComp === compStr || pVenc === compStr;
+                    });
+                }
+
+                if (!targetParcela) {
+                    targetParcela = parcelasExistentes.find((p: any) => p.status === "pendente") || parcelasExistentes[0];
+                }
+
+                if (targetParcela) {
+                    if (targetParcela.faturaCartaoId) {
+                        faturasParaRecalcular.add(targetParcela.faturaCartaoId);
+                    }
+
+                    if (cartao) {
+                        const novaFatura = await faturaCartaoRepository.buscarOuCriarFaturaPorCompetencia(
+                            cartao,
+                            targetParcela.dataVencimentoParcela
+                        );
+                        await gastoRepository.vincularLancamentoBaseAFatura(targetParcela.id, novaFatura.id);
+                        faturasParaRecalcular.add(novaFatura.id);
+                    } else {
+                        // Desvincula esta parcela da fatura (migra para Conta Corrente)
+                        await gastoRepository.vincularLancamentoBaseAFatura(targetParcela.id, null);
+                    }
+                }
+
+                // Atualizar dados do gasto se houver outros campos (como descricao ou categoria),
+                // mantendo o cartaoCreditoId original para que as outras parcelas permaneçam vinculadas ao cartão
+                const updatePayload: iAtualizarGasto = { ...data };
+                delete updatePayload.cartaoCreditoId;
+                delete updatePayload.faturaCartaoId;
+                delete updatePayload.atualizarTodasParcelas;
+                delete updatePayload.parcelaId;
+                delete updatePayload.numeroParcela;
+                delete updatePayload.escopoEdicao;
+                delete updatePayload.targetCompetencia;
+
+                if (Object.keys(updatePayload).length > 0) {
+                    await gastoRepository.atualizarGasto(id, updatePayload);
+                }
+
+                for (const faturaId of faturasParaRecalcular) {
+                    await faturaCartaoRepository.recalcularValorTotal(faturaId);
+                }
+
+                return await gastoRepository.buscarGastoPorId(id);
+            }
+
+            // CT001: Usuário escolheu SIM: todas as parcelas são migradas para a forma de pagamento selecionada
+            const updatePayload: iAtualizarGasto = { ...data };
+            delete updatePayload.atualizarTodasParcelas;
+            delete updatePayload.parcelaId;
+            delete updatePayload.numeroParcela;
+            delete updatePayload.escopoEdicao;
+            delete updatePayload.targetCompetencia;
+
+            if (!cartao) {
+                updatePayload.cartaoCreditoId = null;
+                updatePayload.faturaCartaoId = null;
+            } else {
+                updatePayload.cartaoCreditoId = cartao.id;
+            }
+
+            const gastoAtualizado = await gastoRepository.atualizarGasto(id, updatePayload);
+
+            if (cartao) {
+                const parcelas = await gastoRepository.listarLancamentosBasePorGastoId(id);
+                for (const parcela of parcelas) {
+                    const fatura = await faturaCartaoRepository.buscarOuCriarFaturaPorCompetencia(
+                        cartao,
+                        parcela.dataVencimentoParcela
+                    );
+                    await gastoRepository.vincularLancamentoBaseAFatura(parcela.id, fatura.id);
+                    faturasParaRecalcular.add(fatura.id);
+                }
+            } else {
+                await gastoRepository.desvincularFaturasDeTodasParcelas(id);
+            }
+
+            for (const faturaId of faturasParaRecalcular) {
+                await faturaCartaoRepository.recalcularValorTotal(faturaId);
+            }
+
+            return await gastoRepository.buscarGastoPorId(id);
+        }
+
+        // Caso 5: Transicoes Unico <-> Parcelado ou Atualizacao Regular
         if (cartao && novaOrigem !== "parcelado") {
             const dataVenc = data.dataVencimento ?? gasto.dataVencimento ?? new Date();
             const fatura = await faturaCartaoRepository.buscarOuCriarFaturaPorCompetencia(cartao, new Date(dataVenc));

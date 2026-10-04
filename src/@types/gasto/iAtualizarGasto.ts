@@ -19,4 +19,7 @@ export default interface iAtualizarGasto {
     dataFimRecorrencia?: Date | null;
     escopoEdicao?: "THIS_ONLY" | "THIS_AND_FUTURE" | "ALL_SERIES";
     targetCompetencia?: string | Date | null;
+    atualizarTodasParcelas?: boolean;
+    parcelaId?: string | null;
+    numeroParcela?: number | null;
 }

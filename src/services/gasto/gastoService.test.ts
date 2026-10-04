@@ -1327,4 +1327,116 @@ describe("GastoService", () => {
       expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fatura-2");
     });
   });
+
+  describe("CT001 & CT002: Mudança de Cartão / Pagamento em Gasto Parcelado e Recorrente", () => {
+    it("CT001: deve migrar todas as parcelas para Conta Corrente quando atualizarTodasParcelas for true", async () => {
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue({
+        id: "gasto-parc-1",
+        responsavelId: "user-1",
+        origemLancamento: "parcelado",
+        cartaoCreditoId: "card-1",
+        numeroParcelas: 3,
+        valor: 900,
+      });
+
+      const mockParcelas = [
+        { id: "p1", numeroParcela: 1, valorParcela: 300, faturaCartaoId: "fat-1", dataVencimentoParcela: new Date("2026-09-10") },
+        { id: "p2", numeroParcela: 2, valorParcela: 300, faturaCartaoId: "fat-2", dataVencimentoParcela: new Date("2026-10-10") },
+        { id: "p3", numeroParcela: 3, valorParcela: 300, faturaCartaoId: "fat-3", dataVencimentoParcela: new Date("2026-11-10") },
+      ];
+
+      (gastoRepository.listarLancamentosBasePorGastoId as jest.Mock).mockResolvedValue(mockParcelas);
+      (gastoRepository.atualizarGasto as jest.Mock).mockResolvedValue({ id: "gasto-parc-1", cartaoCreditoId: null });
+      (gastoRepository.desvincularFaturasDeTodasParcelas as jest.Mock) = jest.fn().mockResolvedValue(undefined);
+      (faturaCartaoRepository.recalcularValorTotal as jest.Mock).mockResolvedValue(true);
+
+      const res = await gastoService.atualizarGasto("gasto-parc-1", {
+        cartaoCreditoId: null,
+        atualizarTodasParcelas: true,
+      }, "user-1");
+
+      expect(res).toBeDefined();
+      expect(gastoRepository.desvincularFaturasDeTodasParcelas).toHaveBeenCalledWith("gasto-parc-1");
+      expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fat-1");
+      expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fat-2");
+      expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fat-3");
+    });
+
+    it("CT001: deve desvincular apenas a parcela selecionada quando atualizarTodasParcelas for false", async () => {
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue({
+        id: "gasto-parc-1",
+        responsavelId: "user-1",
+        origemLancamento: "parcelado",
+        cartaoCreditoId: "card-1",
+        numeroParcelas: 3,
+        valor: 900,
+      });
+
+      const mockParcelas = [
+        { id: "p1", numeroParcela: 1, valorParcela: 300, faturaCartaoId: "fat-1", dataVencimentoParcela: new Date("2026-09-10") },
+        { id: "p2", numeroParcela: 2, valorParcela: 300, faturaCartaoId: "fat-2", dataVencimentoParcela: new Date("2026-10-10") },
+        { id: "p3", numeroParcela: 3, valorParcela: 300, faturaCartaoId: "fat-3", dataVencimentoParcela: new Date("2026-11-10") },
+      ];
+
+      (gastoRepository.listarLancamentosBasePorGastoId as jest.Mock).mockResolvedValue(mockParcelas);
+      (gastoRepository.vincularLancamentoBaseAFatura as jest.Mock) = jest.fn().mockResolvedValue(undefined);
+      (gastoRepository.desvincularFaturasDeTodasParcelas as jest.Mock) = jest.fn().mockResolvedValue(undefined);
+      (faturaCartaoRepository.recalcularValorTotal as jest.Mock).mockResolvedValue(true);
+
+      await gastoService.atualizarGasto("gasto-parc-1", {
+        cartaoCreditoId: null,
+        atualizarTodasParcelas: false,
+        numeroParcela: 2,
+      }, "user-1");
+
+      // Apenas a parcela 2 deve ser desvinculada (faturaCartaoId = null)
+      expect(gastoRepository.vincularLancamentoBaseAFatura).toHaveBeenCalledWith("p2", null);
+      // Nao deve ter chamado desvincular de todas
+      expect(gastoRepository.desvincularFaturasDeTodasParcelas).not.toHaveBeenCalled();
+      // Recalcula a fatura da parcela 2
+      expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fat-2");
+    });
+
+    it("CT002: deve atualizar apenas a ocorrencia selecionada quando escopoEdicao for THIS_ONLY", async () => {
+      const gastoRaiz = {
+        id: "gasto-rec-root",
+        responsavelId: "user-1",
+        origemLancamento: "recorrente",
+        cartaoCreditoId: "card-1",
+        recorrenciaPaiId: "gasto-rec-root",
+        dataVencimento: new Date("2026-09-15"),
+        competencia: new Date("2026-09-01"),
+      };
+
+      const registroExistenteMes = {
+        id: "gasto-rec-oct",
+        responsavelId: "user-1",
+        origemLancamento: "recorrente",
+        cartaoCreditoId: "card-1",
+        faturaCartaoId: "fat-oct",
+        recorrenciaPaiId: "gasto-rec-root",
+        dataVencimento: new Date("2026-10-15"),
+        competencia: new Date("2026-10-01"),
+      };
+
+      (gastoRepository.buscarGastoPorId as jest.Mock).mockResolvedValue(registroExistenteMes);
+      (gastoRepository.listarGastosDaSerieRecorrente as jest.Mock).mockResolvedValue([gastoRaiz, registroExistenteMes]);
+      (gastoRepository.atualizarGasto as jest.Mock).mockResolvedValue({ ...registroExistenteMes, cartaoCreditoId: null, faturaCartaoId: null });
+      (faturaCartaoRepository.recalcularValorTotal as jest.Mock).mockResolvedValue(true);
+
+      const res = await gastoService.atualizarGasto("gasto-rec-oct", {
+        cartaoCreditoId: null,
+        escopoEdicao: "THIS_ONLY",
+        targetCompetencia: "2026-10-01",
+      }, "user-1");
+
+      expect(res).toBeDefined();
+      expect(gastoRepository.atualizarGasto).toHaveBeenCalledWith("gasto-rec-oct", expect.objectContaining({
+        cartaoCreditoId: null,
+        faturaCartaoId: null,
+      }));
+      expect(faturaCartaoRepository.recalcularValorTotal).toHaveBeenCalledWith("fat-oct");
+    });
+  });
 });
+
