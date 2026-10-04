@@ -48,5 +48,6 @@ Para qualquer alteração de código, refatoração ou adição de funcionalidad
    * Sempre revise e atualize os contratos Swagger/OpenAPI. Adicione novos esquemas/rotas, atualize payloads e remova seções ou parâmetros obsoletos.
 4. **Fechamento e Saída:** 
    * Inclua obrigatoriamente no final da sua resposta uma breve lista com o status das atualizações automáticas e o output do script/testes.
-5. **Controle de Versão (Git Push):** 
+5. **Controle de Versão (Git Commit & Push):** 
    * **Não faça commit/push direto para a branch sem autorização.** Solicite sempre autorização explícita antes de realizar qualquer `git push` para a branch de desenvolvimento.
+   * Ao sugerir ou executar commits autorizados, utilize estritamente o padrão **Conventional Commits** (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, etc.), conforme [docs/padrao-commits-e-versionamento.md](../docs/padrao-commits-e-versionamento.md).
