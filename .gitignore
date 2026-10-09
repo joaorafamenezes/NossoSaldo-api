@@ -4,6 +4,7 @@ dist
 .env.local
 .env.dev
 keys/private.key
+keys/public.key
 coverage
 .jest-cache
 logs
