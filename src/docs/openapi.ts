@@ -266,7 +266,7 @@ export const openApiSpec = {
           dataVencimento: {
             type: "string",
             format: "date-time",
-            description: "Data de vencimento obrigatoria para qualquer novo gasto.",
+            description: "Data de vencimento obrigatoria. Em lancamentos no cartao, o frontend sugere o vencimento da fatura em aberto ou da proxima fatura conforme a data atual e o dia de fechamento do cartao; a API persiste a data recebida.",
             example: "2026-08-17",
           },
           dataPagamento: { type: "string", format: "date-time", nullable: true },
