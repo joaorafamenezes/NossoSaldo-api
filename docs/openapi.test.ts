@@ -1,6 +1,6 @@
 import request from "supertest";
-import { app } from "../app";
-import { API_PREFIX } from "../config/apiVersion";
+import { app } from "../src/app";
+import { API_PREFIX } from "../src/config/apiVersion";
 
 describe("OpenAPI docs", () => {
   it("should expose the OpenAPI JSON document", async () => {
