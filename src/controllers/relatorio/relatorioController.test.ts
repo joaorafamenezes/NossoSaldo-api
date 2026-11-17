@@ -106,4 +106,29 @@ describe("RelatorioController", () => {
 
     expect(next).toHaveBeenCalledWith(error);
   });
+
+  it("should generate the annual projection report", async () => {
+    req.query = { ano: "2026", categoriaId: "cat-1" };
+    const report = { ano: 2026, saldo: { meses: [], total: 0 } };
+    (relatorioService.gerarProjecaoAnual as jest.Mock).mockResolvedValue(report);
+
+    await relatorioController.gerarProjecaoAnual(req as Request, res as Response, next);
+
+    expect(relatorioService.gerarProjecaoAnual).toHaveBeenCalledWith("user-1", {
+      ano: 2026,
+      categoriaId: "cat-1",
+      responsavelId: undefined,
+    });
+    expect(res.status).toHaveBeenCalledWith(StatusCodes.OK);
+    expect(res.json).toHaveBeenCalledWith({ data: report });
+  });
+
+  it("should reject an annual projection year that is not four digits", async () => {
+    req.query = { ano: "26" };
+
+    await relatorioController.gerarProjecaoAnual(req as Request, res as Response, next);
+
+    expect(relatorioService.gerarProjecaoAnual).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(StatusCodes.BAD_REQUEST);
+  });
 });

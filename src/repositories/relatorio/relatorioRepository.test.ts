@@ -147,4 +147,103 @@ describe("RelatorioRepository", () => {
       { usuario_id: "user-2", total_gasto: 150 },
     ]);
   });
+
+  it("lists projection movements by competencia, installments and without invoice totals", async () => {
+    mockPrisma.gasto.findMany.mockResolvedValue([
+      {
+        tipo: "despesa",
+        valor: 90,
+        competencia: null,
+        dataVencimento: new Date("2026-03-10T00:00:00.000Z"),
+        responsavelId: "user-1",
+        categoriaId: "cat-moradia",
+        categoria: { descricao: "Moradia" },
+      },
+      {
+        tipo: "receita",
+        valor: 10,
+        competencia: null,
+        dataVencimento: null,
+        responsavelId: "user-1",
+        categoriaId: "cat-vazia",
+        categoria: { descricao: "Vazia" },
+      },
+    ]);
+    mockPrisma.lancamentoBase.findMany.mockResolvedValue([
+      {
+        valorParcela: 40,
+        competencia: new Date("2026-05-01T00:00:00.000Z"),
+        gasto: {
+          tipo: "despesa",
+          responsavelId: "user-1",
+          categoriaId: "cat-lazer",
+          categoria: { descricao: "Lazer" },
+        },
+      },
+      {
+        valorParcela: 15,
+        competencia: null,
+        gasto: {
+          tipo: "despesa",
+          responsavelId: "user-1",
+          categoriaId: "cat-lazer",
+          categoria: { descricao: "Lazer" },
+        },
+      },
+    ]);
+
+    await expect(
+      relatorioRepository.listarMovimentosProjecaoAnual({
+        usuarioLogadoId: "user-1",
+        responsavelIds: ["user-1", "user-2"],
+        contaConjunta: true,
+      }),
+    ).resolves.toEqual([
+      {
+        tipo: "despesa",
+        valor: 90,
+        ano: 2026,
+        mes: 3,
+        categoriaId: "cat-moradia",
+        categoriaNome: "Moradia",
+        responsavelId: "user-1",
+      },
+      {
+        tipo: "despesa",
+        valor: 40,
+        ano: 2026,
+        mes: 5,
+        categoriaId: "cat-lazer",
+        categoriaNome: "Lazer",
+        responsavelId: "user-1",
+      },
+    ]);
+
+    expect(mockPrisma.gasto.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          deletedAt: null,
+          status: { in: ["pago", "pendente", "atrasado"] },
+          origemLancamento: { not: "parcelado" },
+          responsavelId: { in: ["user-1", "user-2"] },
+          OR: [
+            { responsavelId: "user-1" },
+            { responsavelId: { not: "user-1" }, naoCompartilhar: false },
+          ],
+        }),
+      }),
+    );
+    expect(mockPrisma.lancamentoBase.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: ["pago", "pendente", "atrasado"] },
+          gasto: expect.objectContaining({
+            deletedAt: null,
+            origemLancamento: "parcelado",
+          }),
+        }),
+      }),
+    );
+    expect(mockPrisma.faturaCartao).toBeUndefined();
+  });
 });

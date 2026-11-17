@@ -9,4 +9,21 @@ export interface RelatorioRepositoryPort {
     usuario1Id: string,
     usuario2Id: string,
   ): Promise<any[]>;
+  listarMovimentosProjecaoAnual(visibilidade: VisibilidadeProjecaoAnual): Promise<MovimentoProjecaoPersistido[]>;
 }
+
+export type VisibilidadeProjecaoAnual = {
+  usuarioLogadoId: string;
+  responsavelIds: string[];
+  contaConjunta: boolean;
+};
+
+export type MovimentoProjecaoPersistido = {
+  tipo: "receita" | "despesa";
+  valor: number;
+  ano: number;
+  mes: number;
+  categoriaId: string;
+  categoriaNome: string;
+  responsavelId: string;
+};

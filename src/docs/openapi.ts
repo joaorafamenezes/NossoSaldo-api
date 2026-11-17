@@ -266,7 +266,7 @@ export const openApiSpec = {
           dataVencimento: {
             type: "string",
             format: "date-time",
-            description: "Data de vencimento obrigatoria para qualquer novo gasto.",
+            description: "Data de vencimento obrigatoria. Em lancamentos no cartao, o frontend sugere o vencimento da fatura em aberto ou da proxima fatura conforme a data atual e o dia de fechamento do cartao; a API persiste a data recebida.",
             example: "2026-08-17",
           },
           dataPagamento: { type: "string", format: "date-time", nullable: true },
@@ -998,6 +998,23 @@ export const openApiSpec = {
           "400": { description: "Periodo invalido", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "401": { description: "Nao autorizado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "404": { description: "Conta conjunta nao encontrada", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+    "/relatorio/projecaoAnual": {
+      get: {
+        tags: ["Relatorios"],
+        summary: "Gera a projecao anual de receitas e despesas por competencia",
+        security: [{ AccessTokenAuth: [] }],
+        parameters: [
+          { in: "query", name: "ano", required: false, schema: { type: "integer", example: 2026 }, description: "Ano civil. Ausente usa o ano vigente em UTC." },
+          { in: "query", name: "categoriaId", required: false, schema: { type: "string", format: "uuid" } },
+          { in: "query", name: "responsavelId", required: false, schema: { type: "string", format: "uuid" } },
+        ],
+        responses: {
+          "200": { description: "Projecao anual gerada com sucesso" },
+          "400": { description: "Ano, categoria ou responsavel invalido", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Nao autorizado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
         },
       },
     },

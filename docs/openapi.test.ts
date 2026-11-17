@@ -1,6 +1,6 @@
 import request from "supertest";
-import { app } from "../app";
-import { API_PREFIX } from "../config/apiVersion";
+import { app } from "../src/app";
+import { API_PREFIX } from "../src/config/apiVersion";
 
 describe("OpenAPI docs", () => {
   it("should expose the OpenAPI JSON document", async () => {
@@ -56,6 +56,7 @@ describe("OpenAPI docs", () => {
     expect(response.body.paths).toHaveProperty("/relatorio/comparativoMensal/{mesAtual}/{mesAnterior}");
     expect(response.body.paths).toHaveProperty("/relatorio/topCategoria/{de}/{ate}");
     expect(response.body.paths).toHaveProperty("/relatorio/quemGastaMais/{de}/{ate}");
+    expect(response.body.paths).toHaveProperty("/relatorio/projecaoAnual");
     expect(response.body.paths).toHaveProperty("/insights/gargalos/{de}/{ate}");
     expect(response.body.paths).toHaveProperty("/ia/consultas");
     expect(response.body.paths["/ia/consultas"]).toHaveProperty("post");

@@ -1,6 +1,10 @@
 import { PrismaClient } from "@prisma/client";
 import { prisma as defaultPrisma } from "../../lib/prisma";
-import { RelatorioRepositoryPort } from "../../ports/outbound/relatorioRepositoryPort";
+import {
+  MovimentoProjecaoPersistido,
+  RelatorioRepositoryPort,
+  VisibilidadeProjecaoAnual,
+} from "../../ports/outbound/relatorioRepositoryPort";
 
 function formatReferencia(date: Date | null) {
   if (!date) {
@@ -8,6 +12,33 @@ function formatReferencia(date: Date | null) {
   }
 
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+const STATUS_PROJECAO = ["pago", "pendente", "atrasado"] as const;
+
+function referenciaUtc(data: Date | null | undefined): { ano: number; mes: number } | null {
+  if (!data || Number.isNaN(data.getTime())) {
+    return null;
+  }
+
+  return { ano: data.getUTCFullYear(), mes: data.getUTCMonth() + 1 };
+}
+
+function visibilidadeDoGasto(visibilidade: VisibilidadeProjecaoAnual) {
+  if (!visibilidade.contaConjunta) {
+    return { responsavelId: visibilidade.usuarioLogadoId };
+  }
+
+  return {
+    responsavelId: { in: visibilidade.responsavelIds },
+    OR: [
+      { responsavelId: visibilidade.usuarioLogadoId },
+      {
+        responsavelId: { not: visibilidade.usuarioLogadoId },
+        naoCompartilhar: false,
+      },
+    ],
+  };
 }
 
 type PaidMovement = {
@@ -198,6 +229,89 @@ export class PrismaRelatorioRepository implements RelatorioRepositoryPort {
     }
 
     return Array.from(acumulado.entries()).map(([usuario_id, total_gasto]) => ({ usuario_id, total_gasto }));
+  }
+
+  async listarMovimentosProjecaoAnual(visibilidade: VisibilidadeProjecaoAnual): Promise<MovimentoProjecaoPersistido[]> {
+    const filtroResponsavel = visibilidadeDoGasto(visibilidade);
+    const [gastos, parcelas] = await Promise.all([
+      this.prisma.gasto.findMany({
+        where: {
+          ...filtroResponsavel,
+          deletedAt: null,
+          status: { in: [...STATUS_PROJECAO] },
+          origemLancamento: { not: "parcelado" },
+        },
+        select: {
+          tipo: true,
+          valor: true,
+          competencia: true,
+          dataVencimento: true,
+          responsavelId: true,
+          categoriaId: true,
+          categoria: { select: { descricao: true } },
+        },
+      }),
+      this.prisma.lancamentoBase.findMany({
+        where: {
+          status: { in: [...STATUS_PROJECAO] },
+          gasto: {
+            ...filtroResponsavel,
+            deletedAt: null,
+            origemLancamento: "parcelado",
+          },
+        },
+        select: {
+          valorParcela: true,
+          competencia: true,
+          gasto: {
+            select: {
+              tipo: true,
+              responsavelId: true,
+              categoriaId: true,
+              categoria: { select: { descricao: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const movimentos: MovimentoProjecaoPersistido[] = [];
+
+    for (const gasto of gastos) {
+      const referencia = referenciaUtc(gasto.competencia) ?? referenciaUtc(gasto.dataVencimento);
+      if (!referencia || (gasto.tipo !== "receita" && gasto.tipo !== "despesa")) {
+        continue;
+      }
+
+      movimentos.push({
+        tipo: gasto.tipo,
+        valor: Number(gasto.valor),
+        ano: referencia.ano,
+        mes: referencia.mes,
+        categoriaId: gasto.categoriaId,
+        categoriaNome: gasto.categoria?.descricao ?? "Sem categoria",
+        responsavelId: gasto.responsavelId,
+      });
+    }
+
+    for (const parcela of parcelas) {
+      const referencia = referenciaUtc(parcela.competencia);
+      if (!referencia || (parcela.gasto.tipo !== "receita" && parcela.gasto.tipo !== "despesa")) {
+        continue;
+      }
+
+      movimentos.push({
+        tipo: parcela.gasto.tipo,
+        valor: Number(parcela.valorParcela),
+        ano: referencia.ano,
+        mes: referencia.mes,
+        categoriaId: parcela.gasto.categoriaId,
+        categoriaNome: parcela.gasto.categoria?.descricao ?? "Sem categoria",
+        responsavelId: parcela.gasto.responsavelId,
+      });
+    }
+
+    return movimentos;
   }
 }
 
