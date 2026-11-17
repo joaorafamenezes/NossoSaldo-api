@@ -51,3 +51,7 @@ Para qualquer alteração de código, refatoração ou adição de funcionalidad
 5. **Controle de Versão (Git Commit & Push):** 
    * **Não faça commit/push direto para a branch sem autorização.** Solicite sempre autorização explícita antes de realizar qualquer `git push` para a branch de desenvolvimento.
    * Ao sugerir ou executar commits autorizados, utilize estritamente o padrão **Conventional Commits** (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, etc.), conforme [docs/padrao-commits-e-versionamento.md](../docs/padrao-commits-e-versionamento.md).
+6. **Integração Context7 MCP (Documentação e Versões Atualizadas):**
+   * Antes de implementar endpoints, novos casos de uso, refatorar regras de negócio ou atualizar bibliotecas na API (Express 5, Prisma 7, adaptadores `@prisma/adapter-pg` / `@prisma/adapter-mariadb`, Jest 30, TypeScript 6, Joi, Pino, Swagger/OpenAPI):
+     * Consulte **obrigatoriamente** o servidor MCP do **Context7** (`https://context7.com/`) utilizando as ferramentas `resolve-library-id` e `query-docs` (ou CLI `npx ctx7 docs <libraryId> <query>`).
+     * Assegure que as APIs, contratos e sintaxes implementadas correspondam exatamente às versões das dependências declaradas no `package.json`, prevenindo quebras por depreciação (ex: suporte nativo a async handlers do Express 5, novidades do Prisma 7 e seus drivers).

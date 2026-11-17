@@ -1,0 +1,4 @@
+{
+  "name": "context7",
+  "description": "Context7 MCP integration for backend dependencies (Express 5, Prisma 7, PostgreSQL/MariaDB adapters, Jest 30, TypeScript 6)."
+}

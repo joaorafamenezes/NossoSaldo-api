@@ -56,6 +56,7 @@ describe("OpenAPI docs", () => {
     expect(response.body.paths).toHaveProperty("/relatorio/comparativoMensal/{mesAtual}/{mesAnterior}");
     expect(response.body.paths).toHaveProperty("/relatorio/topCategoria/{de}/{ate}");
     expect(response.body.paths).toHaveProperty("/relatorio/quemGastaMais/{de}/{ate}");
+    expect(response.body.paths).toHaveProperty("/relatorio/projecaoAnual");
     expect(response.body.paths).toHaveProperty("/insights/gargalos/{de}/{ate}");
     expect(response.body.paths).toHaveProperty("/ia/consultas");
     expect(response.body.paths["/ia/consultas"]).toHaveProperty("post");
