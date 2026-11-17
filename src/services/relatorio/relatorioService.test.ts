@@ -1,10 +1,12 @@
 import { relatorioService } from "./relatorioService";
 import { relatorioRepository } from "../../repositories/relatorio/relatorioRepository";
 import { contaConjuntaRepository } from "../../repositories/contaConjunta/contaConjuntaRepository";
+import { categoriaRepository } from "../../repositories/categoria/categoriaRepository";
 import { gastoService } from "../gasto/gastoService";
 
 jest.mock("../../repositories/relatorio/relatorioRepository");
 jest.mock("../../repositories/contaConjunta/contaConjuntaRepository");
+jest.mock("../../repositories/categoria/categoriaRepository");
 jest.mock("../gasto/gastoService");
 
 describe("RelatorioService", () => {
@@ -84,5 +86,63 @@ describe("RelatorioService", () => {
       "message",
       "Usuario nao possui conta conjunta ativa.",
     );
+  });
+
+  it("builds the annual projection without materializing future recurring expenses", async () => {
+    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([]);
+    (relatorioRepository.listarMovimentosProjecaoAnual as jest.Mock).mockResolvedValue([
+      {
+        tipo: "receita",
+        valor: 5000,
+        ano: 2026,
+        mes: 1,
+        categoriaId: "cat-salario",
+        categoriaNome: "Salario",
+        responsavelId: "user-1",
+      },
+      {
+        tipo: "despesa",
+        valor: 3200,
+        ano: 2026,
+        mes: 1,
+        categoriaId: "cat-moradia",
+        categoriaNome: "Moradia",
+        responsavelId: "user-1",
+      },
+    ]);
+
+    const relatorio = await relatorioService.gerarProjecaoAnual("user-1", { ano: 2026 });
+
+    expect(gastoService.gerarGastosRecorrentesPorPeriodo).not.toHaveBeenCalled();
+    expect(relatorioRepository.listarMovimentosProjecaoAnual).toHaveBeenCalledWith({
+      usuarioLogadoId: "user-1",
+      responsavelIds: ["user-1"],
+      contaConjunta: false,
+    });
+    expect(relatorio.saldo.meses[0]).toBe(1800);
+    expect(relatorio.contaConjunta).toBeNull();
+  });
+
+  it("rejects an unknown category and a responsible outside the joint account", async () => {
+    (contaConjuntaRepository.listarContasConjuntasPorUsuarioId as jest.Mock).mockResolvedValue([
+      {
+        usuario1Id: "user-1",
+        usuario2Id: "user-2",
+        usuario1: { id: "user-1", nome: "Joao" },
+        usuario2: { id: "user-2", nome: "Maria" },
+      },
+    ]);
+    (categoriaRepository.buscarCategoriaPorId as jest.Mock).mockResolvedValue(null);
+
+    await expect(relatorioService.gerarProjecaoAnual("user-1", { ano: 2026, categoriaId: "ausente" })).rejects.toHaveProperty(
+      "message",
+      "Categoria nao encontrada.",
+    );
+
+    (categoriaRepository.buscarCategoriaPorId as jest.Mock).mockResolvedValue({ id: "cat-1" });
+
+    await expect(
+      relatorioService.gerarProjecaoAnual("user-1", { ano: 2026, responsavelId: "user-3" }),
+    ).rejects.toHaveProperty("message", "Responsavel invalido para este relatorio.");
   });
 });

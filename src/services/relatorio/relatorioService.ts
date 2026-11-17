@@ -1,7 +1,9 @@
 import { relatorioRepository } from "../../repositories/relatorio/relatorioRepository";
 import { contaConjuntaRepository } from "../../repositories/contaConjunta/contaConjuntaRepository";
+import { categoriaRepository } from "../../repositories/categoria/categoriaRepository";
 import createHttpError from "http-errors";
 import { gastoService } from "../gasto/gastoService";
+import { montarProjecaoAnual } from "./projecaoAnual";
 
 type RelatorioComparativoMensalItem = {
     referencia: string;
@@ -131,6 +133,64 @@ class RelatorioService{
             usuario1: ranking[0],
             usuario2: ranking[1],
         };
+    }
+
+    async gerarProjecaoAnual(
+        usuarioId: string,
+        filtros: { ano?: number; categoriaId?: string; responsavelId?: string } = {},
+    ) {
+        const anoVigente = new Date().getUTCFullYear();
+        const ano = filtros.ano ?? anoVigente;
+
+        if (!Number.isInteger(ano) || ano < 1900 || ano > 9999) {
+            throw createHttpError(400, "O parametro 'ano' e invalido.");
+        }
+
+        const contasConjuntas = await contaConjuntaRepository.listarContasConjuntasPorUsuarioId(usuarioId);
+        const contaConjuntaAtiva = contasConjuntas[0];
+        let responsavelId = filtros.responsavelId;
+
+        if (contaConjuntaAtiva) {
+            const membros = [contaConjuntaAtiva.usuario1Id, contaConjuntaAtiva.usuario2Id];
+            if (responsavelId && !membros.includes(responsavelId)) {
+                throw createHttpError(400, "Responsavel invalido para este relatorio.");
+            }
+        } else if (responsavelId && responsavelId !== usuarioId) {
+            throw createHttpError(400, "Responsavel invalido para este relatorio.");
+        } else {
+            responsavelId = undefined;
+        }
+
+        if (filtros.categoriaId) {
+            const categoria = await categoriaRepository.buscarCategoriaPorId(filtros.categoriaId);
+            if (!categoria) {
+                throw createHttpError(400, "Categoria nao encontrada.");
+            }
+        }
+
+        const movimentos = await relatorioRepository.listarMovimentosProjecaoAnual({
+            usuarioLogadoId: usuarioId,
+            responsavelIds: contaConjuntaAtiva
+                ? [contaConjuntaAtiva.usuario1Id, contaConjuntaAtiva.usuario2Id]
+                : [usuarioId],
+            contaConjunta: Boolean(contaConjuntaAtiva),
+        });
+
+        return montarProjecaoAnual({
+            movimentos,
+            ano,
+            anoVigente,
+            categoriaId: filtros.categoriaId,
+            responsavelId,
+            contaConjunta: contaConjuntaAtiva
+                ? {
+                    membros: [
+                        { id: contaConjuntaAtiva.usuario1.id, nome: contaConjuntaAtiva.usuario1.nome },
+                        { id: contaConjuntaAtiva.usuario2.id, nome: contaConjuntaAtiva.usuario2.nome },
+                    ],
+                }
+                : null,
+        });
     }
 }
 

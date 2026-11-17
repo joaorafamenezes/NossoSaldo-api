@@ -97,6 +97,34 @@ class RelatorioController {
         }
     }
 
+    async gerarProjecaoAnual(req: Request, res: Response, next: NextFunction) {
+        try {
+            const payload = res.locals.payload as Token;
+            const anoInformado = typeof req.query.ano === "string" ? req.query.ano.trim() : undefined;
+            const categoriaId = typeof req.query.categoriaId === "string" ? req.query.categoriaId.trim() : undefined;
+            const responsavelId = typeof req.query.responsavelId === "string" ? req.query.responsavelId.trim() : undefined;
+
+            if (anoInformado && !/^\d{4}$/.test(anoInformado)) {
+                return res.status(StatusCodes.BAD_REQUEST).json({
+                    error: {
+                        code: "BAD_REQUEST",
+                        message: "O parametro 'ano' deve ter 4 digitos.",
+                    },
+                });
+            }
+
+            const relatorio = await relatorioService.gerarProjecaoAnual(payload.id, {
+                ano: anoInformado ? Number(anoInformado) : undefined,
+                categoriaId: categoriaId || undefined,
+                responsavelId: responsavelId || undefined,
+            });
+
+            return sendSuccess(res, StatusCodes.OK, relatorio);
+        } catch (error) {
+            return next(error);
+        }
+    }
+
 }
 
 export const relatorioController = new RelatorioController();

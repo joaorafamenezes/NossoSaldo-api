@@ -17,5 +17,8 @@ relatorioRouter.get('/relatorio/topCategoria/:de/:ate', validarToken, (req: Requ
 relatorioRouter.get('/relatorio/quemGastaMais/:de/:ate', validarToken, (req: Request, res: Response, next: NextFunction) => {
     relatorioController.gerarRelatorioQuemGastaMais(req, res, next).catch(next);
 });
+relatorioRouter.get('/relatorio/projecaoAnual', validarToken, (req: Request, res: Response, next: NextFunction) => {
+    relatorioController.gerarProjecaoAnual(req, res, next).catch(next);
+});
 
 export { relatorioRouter };
