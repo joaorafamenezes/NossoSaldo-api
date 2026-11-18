@@ -26,4 +26,6 @@ export type MovimentoProjecaoPersistido = {
   categoriaId: string;
   categoriaNome: string;
   responsavelId: string;
+  recorrenciaId?: string | null;
+  recorrenciaPaiId?: string | null;
 };

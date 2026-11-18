@@ -1,8 +1,11 @@
 import { relatorioRepository } from "../../repositories/relatorio/relatorioRepository";
 import { contaConjuntaRepository } from "../../repositories/contaConjunta/contaConjuntaRepository";
 import { categoriaRepository } from "../../repositories/categoria/categoriaRepository";
+import { recorrenciaRepository } from "../../repositories/recorrencia/recorrenciaRepository";
+import { MovimentoProjecaoPersistido } from "../../ports/outbound/relatorioRepositoryPort";
 import createHttpError from "http-errors";
 import { gastoService } from "../gasto/gastoService";
+import { projecaoRecorrenciaService } from "../recorrencia/projecaoRecorrenciaService";
 import { montarProjecaoAnual } from "./projecaoAnual";
 
 type RelatorioComparativoMensalItem = {
@@ -15,6 +18,71 @@ type RelatorioQuemGastaMaisItem = {
     usuario_id: string;
     total_gasto: number | string;
 };
+
+function ocorrenciaVirtualVisivel(
+    ocorrencia: { responsavelId?: string; naoCompartilhar?: boolean },
+    usuarioLogadoId: string,
+    contaConjunta: boolean,
+) {
+    if (!ocorrencia.responsavelId) {
+        return false;
+    }
+
+    if (ocorrencia.responsavelId === usuarioLogadoId) {
+        return true;
+    }
+
+    return contaConjunta && !ocorrencia.naoCompartilhar;
+}
+
+function acrescentarOcorrenciasVirtuais(
+    movimentos: MovimentoProjecaoPersistido[],
+    recorrencias: any[],
+    ano: number,
+    usuarioLogadoId: string,
+    contaConjunta: boolean,
+) {
+    const gastosFisicos = movimentos
+        .filter((movimento) => movimento.recorrenciaId || movimento.recorrenciaPaiId)
+        .map((movimento) => ({
+            recorrenciaId: movimento.recorrenciaId,
+            recorrenciaPaiId: movimento.recorrenciaPaiId,
+            competencia: new Date(Date.UTC(movimento.ano, movimento.mes - 1, 1, 12, 0, 0, 0)),
+        }));
+    const combinados = projecaoRecorrenciaService.gerarProjecoesJIT(
+        gastosFisicos,
+        recorrencias,
+        {
+            de: new Date(Date.UTC(ano, 0, 1, 0, 0, 0, 0)),
+            ate: new Date(Date.UTC(ano, 11, 31, 23, 59, 59, 999)),
+        },
+    );
+
+    for (const ocorrencia of combinados) {
+        if (!ocorrencia.isVirtual || !ocorrenciaVirtualVisivel(ocorrencia, usuarioLogadoId, contaConjunta)) {
+            continue;
+        }
+
+        if (ocorrencia.tipo !== "receita" && ocorrencia.tipo !== "despesa") {
+            continue;
+        }
+
+        const competencia = ocorrencia.competencia ? new Date(ocorrencia.competencia) : null;
+        if (!competencia || Number.isNaN(competencia.getTime()) || competencia.getUTCFullYear() !== ano) {
+            continue;
+        }
+
+        movimentos.push({
+            tipo: ocorrencia.tipo,
+            valor: Number(ocorrencia.valor),
+            ano,
+            mes: competencia.getUTCMonth() + 1,
+            categoriaId: ocorrencia.categoriaId,
+            categoriaNome: ocorrencia.categoriaDescricao || "Sem categoria",
+            responsavelId: ocorrencia.responsavelId,
+        });
+    }
+}
 
 class RelatorioService{
     async gerarRelatorioEvolucaoMensal(de: string, ate: string, userId: string){
@@ -168,13 +236,26 @@ class RelatorioService{
             }
         }
 
+        const responsavelIds = contaConjuntaAtiva
+            ? [contaConjuntaAtiva.usuario1Id, contaConjuntaAtiva.usuario2Id]
+            : [usuarioId];
         const movimentos = await relatorioRepository.listarMovimentosProjecaoAnual({
             usuarioLogadoId: usuarioId,
-            responsavelIds: contaConjuntaAtiva
-                ? [contaConjuntaAtiva.usuario1Id, contaConjuntaAtiva.usuario2Id]
-                : [usuarioId],
+            responsavelIds,
             contaConjunta: Boolean(contaConjuntaAtiva),
         });
+        const recorrencias = await recorrenciaRepository.listarRecorrenciasAtivasNoPeriodo(
+            responsavelIds,
+            new Date(Date.UTC(ano, 0, 1, 0, 0, 0, 0)),
+            new Date(Date.UTC(ano, 11, 31, 23, 59, 59, 999)),
+        );
+        acrescentarOcorrenciasVirtuais(
+            movimentos,
+            recorrencias,
+            ano,
+            usuarioId,
+            Boolean(contaConjuntaAtiva),
+        );
 
         return montarProjecaoAnual({
             movimentos,
