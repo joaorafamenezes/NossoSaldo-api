@@ -207,6 +207,8 @@ describe("RelatorioRepository", () => {
         categoriaId: "cat-moradia",
         categoriaNome: "Moradia",
         responsavelId: "user-1",
+        recorrenciaId: null,
+        recorrenciaPaiId: null,
       },
       {
         tipo: "despesa",
@@ -216,6 +218,8 @@ describe("RelatorioRepository", () => {
         categoriaId: "cat-lazer",
         categoriaNome: "Lazer",
         responsavelId: "user-1",
+        recorrenciaId: null,
+        recorrenciaPaiId: null,
       },
     ]);
 

@@ -249,6 +249,8 @@ export class PrismaRelatorioRepository implements RelatorioRepositoryPort {
           responsavelId: true,
           categoriaId: true,
           categoria: { select: { descricao: true } },
+          recorrenciaId: true,
+          recorrenciaPaiId: true,
         },
       }),
       this.prisma.lancamentoBase.findMany({
@@ -291,6 +293,8 @@ export class PrismaRelatorioRepository implements RelatorioRepositoryPort {
         categoriaId: gasto.categoriaId,
         categoriaNome: gasto.categoria?.descricao ?? "Sem categoria",
         responsavelId: gasto.responsavelId,
+        recorrenciaId: gasto.recorrenciaId ?? null,
+        recorrenciaPaiId: gasto.recorrenciaPaiId ?? null,
       });
     }
 
@@ -308,6 +312,8 @@ export class PrismaRelatorioRepository implements RelatorioRepositoryPort {
         categoriaId: parcela.gasto.categoriaId,
         categoriaNome: parcela.gasto.categoria?.descricao ?? "Sem categoria",
         responsavelId: parcela.gasto.responsavelId,
+        recorrenciaId: null,
+        recorrenciaPaiId: null,
       });
     }
 
